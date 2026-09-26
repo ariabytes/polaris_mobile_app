@@ -6,7 +6,8 @@ import 'controllers/material_controller.dart';
 import 'controllers/transaction_controller.dart';
 import 'login_page.dart';
 import 'views/admin/admin_homepage.dart';
-import 'views/student/student_homepage.dart';
+// import 'views/student/student_homepage.dart';
+import 'views/student/navbar.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,7 +52,7 @@ class AuthGate extends StatelessWidget {
     return Consumer<AuthController>(
       builder: (context, auth, _) {
         if (!auth.isLoggedIn) return const LoginPage();
-        return auth.isAdmin ? const AdminHomepage() : const StudentHomepage();
+        return auth.isAdmin ? const AdminHomepage() : const StudentNavBar();
       },
     );
   }

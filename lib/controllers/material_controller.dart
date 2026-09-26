@@ -1,12 +1,16 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:cloudinary_public/cloudinary_public.dart';
 import '../models/material_model.dart';
 import '../services/material_service.dart';
+import '../services/storage_service.dart';
 
 /// Reads: pass-through Stream getters — the View wires these straight into
 /// a StreamBuilder, no local list caching needed.
 /// Writes: own isSaving/errorMessage so forms can show progress + failures.
 class MaterialController extends ChangeNotifier {
   final MaterialService _service;
+  final StorageService _storage = StorageService();
 
   MaterialController({MaterialService? service}) : _service = service ?? MaterialService();
 
@@ -59,6 +63,51 @@ class MaterialController extends ChangeNotifier {
       return true;
     } catch (_) {
       _failSaving('Could not save your material. Please try again.');
+      return false;
+    }
+  }
+
+  Future<bool> uploadCoverImage(String materialId, File file, String originalFilename) async {
+    _startSaving();
+    try {
+      final result = await _storage.uploadFile(
+        file: file,
+        originalFilename: originalFilename,
+        folder: 'materials/covers',
+        resourceType: CloudinaryResourceType.Image,
+        useRestrictedPreset: false, // covers are always public
+      );
+      await _service.setCoverImage(materialId, result);
+      _finishSaving();
+      return true;
+    } catch (_) {
+      _failSaving('Could not upload cover image. Please try again.');
+      return false;
+    }
+  }
+
+  Future<bool> uploadAttachment({
+    required String materialId,
+    required File file,
+    required String originalFilename,
+    required String visibility,
+    required CloudinaryResourceType resourceType,
+  }) async {
+    _startSaving();
+    try {
+      final isSensitive = visibility == 'private' || visibility == 'public_paid';
+      final result = await _storage.uploadFile(
+        file: file,
+        originalFilename: originalFilename,
+        folder: isSensitive ? 'materials/attachments_restricted' : 'materials/attachments_public',
+        resourceType: resourceType,
+        useRestrictedPreset: isSensitive,
+      );
+      await _service.addAttachment(materialId, result);
+      _finishSaving();
+      return true;
+    } catch (_) {
+      _failSaving('Could not upload attachment. Please try again.');
       return false;
     }
   }

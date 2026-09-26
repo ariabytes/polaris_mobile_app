@@ -53,6 +53,30 @@ class MaterialService {
     });
   }
 
+  /// Cloudinary storage note: changing visibility here does NOT move or
+  /// re-flag the underlying Cloudinary asset (it stays under whichever
+  /// preset — Public/Restricted — it was originally uploaded with).
+  /// Access is actually enforced by MaterialService/StorageService checking
+  /// this `visibility` field (plus ownership/purchase records) before ever
+  /// handing back a usable file URL. See chat notes on this — it's a
+  /// deliberate simplification, not an oversight.
+  Future<void> updateVisibility(String materialId, String newVisibility) async {
+    await updateMaterial(materialId, {'visibility': newVisibility});
+  }
+
+  Future<void> setCoverImage(String materialId, Map<String, dynamic> coverImage) async {
+    await updateMaterial(materialId, {'cover_image': coverImage});
+  }
+
+  Future<void> addAttachment(String materialId, Map<String, dynamic> attachment) async {
+    await _materials.doc(materialId).update({
+      'attachments': FieldValue.arrayUnion([
+        {...attachment, 'uploaded_at': Timestamp.now()},
+      ]),
+      'updated_at': FieldValue.serverTimestamp(),
+    });
+  }
+
   // ---------- SOFT DELETE ----------
   /// Materials are never hard-deleted (transactions may reference them) —
   /// flip status to "removed" instead, which every read query filters out.
@@ -109,5 +133,12 @@ class MaterialService {
       if (!doc.exists || doc.data() == null) return null;
       return MaterialModel.fromMap(doc.id, doc.data()!);
     });
+  }
+
+  bool canAccessContent(MaterialModel material, String? currentUserId, bool hasPurchased) {
+    if (material.visibility == 'public_free') return true;
+    if (material.ownerId == currentUserId) return true;
+    if (material.visibility == 'public_paid' && hasPurchased) return true;
+    return false;
   }
 }

@@ -5,15 +5,17 @@ import 'package:provider/provider.dart';
 class StudentHomepage extends StatelessWidget {
   const StudentHomepage({super.key});
 
-  static const Color cream = Color(0xFFFEEFDD);
-  static const Color orange = Color(0xFFF87C4F);
+  static const Color cream = Color(0xFFFCF6F0);
+  static const Color navy = Color(0xFF252A5A);
+  static const Color purple = Color(0xFF7B5EA7);
+  static const Color gold = Color(0xFFE8B94A);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: cream,
       appBar: AppBar(
-        backgroundColor: orange,
+        backgroundColor: navy,
         foregroundColor: Colors.white,
         title: const Text(
           'Student Home',
@@ -22,9 +24,12 @@ class StudentHomepage extends StatelessWidget {
           ),
         ),
         actions: [
-          IconButton(onPressed: () async {
-            await context.read<AuthController>().logout();
-          }, icon: const Icon(Icons.logout))
+          IconButton(
+            onPressed: () async {
+              await context.read<AuthController>().logout();
+            },
+            icon: const Icon(Icons.logout),
+          ),
         ],
       ),
       body: const Center(
@@ -33,6 +38,7 @@ class StudentHomepage extends StatelessWidget {
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
+            color: navy,
           ),
         ),
       ),

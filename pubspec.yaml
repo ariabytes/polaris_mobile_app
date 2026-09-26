@@ -41,6 +41,12 @@ dependencies:
   provider: ^6.1.5+1
   font_awesome_flutter: ^11.0.0
   google_fonts: ^8.2.1
+  cloud_functions: ^6.5.0
+  cloudinary_public: ^0.23.1
+  image_picker: ^1.1.2
+  file_picker: ^10.3.6
+  markdown_quill: ^4.3.0
+  markdown: ^7.3.1
 
 dev_dependencies:
   flutter_test:

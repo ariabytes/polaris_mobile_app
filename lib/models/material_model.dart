@@ -17,6 +17,9 @@ class MaterialModel {
   final double? price;
   final int viewCount;
   final int purchaseCount;
+  final Map<String, dynamic>? coverImage; // {public_id, format}
+  final List<Map<String, dynamic>> attachments;
+  // each: {public_id, resource_type, format, original_filename, size_bytes, uploaded_at}
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -37,6 +40,8 @@ class MaterialModel {
     this.price,
     this.viewCount = 0,
     this.purchaseCount = 0,
+    this.coverImage,
+    this.attachments = const [],
     this.createdAt,
     this.updatedAt,
   });
@@ -45,6 +50,7 @@ class MaterialModel {
   bool get isPublicFree => visibility == 'public_free';
   bool get isPublicPaid => visibility == 'public_paid';
   bool get isActive => status == 'active';
+  bool get needsRestrictedStorage => visibility == 'private' || visibility == 'public_paid';
 
   factory MaterialModel.fromMap(String docId, Map<String, dynamic> data) {
     return MaterialModel(
@@ -64,6 +70,11 @@ class MaterialModel {
       price: (data['price'] as num?)?.toDouble(),
       viewCount: (data['view_count'] as num?)?.toInt() ?? 0,
       purchaseCount: (data['purchase_count'] as num?)?.toInt() ?? 0,
+      coverImage: data['cover_image'] as Map<String, dynamic>?,
+      attachments: (data['attachments'] as List<dynamic>?)
+              ?.map((a) => Map<String, dynamic>.from(a as Map))
+              .toList() ??
+          [],
       createdAt: (data['created_at'] as Timestamp?)?.toDate(),
       updatedAt: (data['updated_at'] as Timestamp?)?.toDate(),
     );
@@ -87,6 +98,8 @@ class MaterialModel {
       'price': visibility == 'public_paid' ? price : null,
       'view_count': viewCount,
       'purchase_count': purchaseCount,
+      'cover_image': coverImage,
+      'attachments': attachments,
       'created_at':
           createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
       'updated_at': FieldValue.serverTimestamp(),
