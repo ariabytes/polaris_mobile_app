@@ -29,7 +29,11 @@ class MaterialController extends ChangeNotifier {
   Stream<MaterialModel?> material(String materialId) => _service.streamMaterial(materialId);
 
   // ---------- WRITES ----------
-  Future<bool> createMaterial({
+
+  /// Returns the new material's ID on success, or null on failure — the
+  /// caller needs the ID to immediately attach an uploaded file to it
+  /// (see the My Materials upload button flow).
+  Future<String?> createMaterial({
     required String ownerId,
     required String title,
     String? description,
@@ -45,7 +49,7 @@ class MaterialController extends ChangeNotifier {
   }) async {
     _startSaving();
     try {
-      await _service.createMaterial(
+      final newId = await _service.createMaterial(
         ownerId: ownerId,
         title: title,
         description: description,
@@ -60,10 +64,10 @@ class MaterialController extends ChangeNotifier {
         price: price,
       );
       _finishSaving();
-      return true;
+      return newId;
     } catch (_) {
       _failSaving('Could not save your material. Please try again.');
-      return false;
+      return null;
     }
   }
 

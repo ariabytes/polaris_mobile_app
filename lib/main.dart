@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 import 'controllers/auth_controller.dart';
 import 'controllers/material_controller.dart';
 import 'controllers/transaction_controller.dart';
 import 'login_page.dart';
 import 'views/admin/admin_homepage.dart';
-// import 'views/student/student_homepage.dart';
 import 'views/student/navbar.dart';
+
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,6 +32,13 @@ class PolarisApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Polaris',
         debugShowCheckedModeBanner: false,
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          FlutterQuillLocalizations.delegate,
+        ],
+        supportedLocales: const [Locale('en')],
         theme: ThemeData(
           scaffoldBackgroundColor: const Color(0xFFFCF6F0),
           colorScheme: ColorScheme.fromSeed(

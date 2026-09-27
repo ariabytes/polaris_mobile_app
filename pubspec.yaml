@@ -47,6 +47,9 @@ dependencies:
   file_picker: ^10.3.6
   markdown_quill: ^4.3.0
   markdown: ^7.3.1
+  url_launcher: ^6.3.1
+  webview_flutter: ^4.10.0
+  syncfusion_flutter_pdfviewer: ^33.2.13
 
 dev_dependencies:
   flutter_test:

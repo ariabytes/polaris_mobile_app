@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'student_homepage.dart';
 import 'package:polaris_mobile_app/views/student/profile/student_profile.dart';
 import 'package:polaris_mobile_app/views/student/material/create_material.dart';
+import 'package:polaris_mobile_app/views/student/material/my_materials.dart';
 
 class StudentNavBar extends StatefulWidget {
   const StudentNavBar({super.key});
@@ -23,19 +24,12 @@ class _StudentNavBarState extends State<StudentNavBar> {
 
   final List<Widget> _screens = const [
     StudentHomepage(),
-
     Placeholder(
       child: Center(
         child: Text('Discover'),
       ),
     ),
-
-    Placeholder(
-      child: Center(
-        child: Text('My Materials'),
-      ),
-    ),
-
+    MyMaterialsView(),
     StudentProfileView(),
   ];
 
@@ -56,6 +50,8 @@ class _StudentNavBarState extends State<StudentNavBar> {
   }
 
   void _onDestinationSelected(int navBarIndex) {
+    print('NAVBAR CLICKED: $navBarIndex');
+
     if (navBarIndex == _createTabIndex) {
       _openCreateMaterial();
       return;
@@ -64,6 +60,8 @@ class _StudentNavBarState extends State<StudentNavBar> {
     setState(() {
       _selectedIndex = _screenIndexFor(navBarIndex);
     });
+
+    print('SCREEN INDEX: $_selectedIndex');
   }
 
   void _openCreateMaterial() {

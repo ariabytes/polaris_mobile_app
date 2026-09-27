@@ -88,9 +88,22 @@ class StorageService {
         );
       }
 
+      // Cloudinary's response often omits `format` for resource_type: raw
+      // uploads (the common case for pdf/docx/pptx) — it mainly extracts
+      // that metadata for images/video. Fall back to the original
+      // filename's extension so downstream code (the document viewer,
+      // file-type icons, etc.) always has something to key off of.
+      String format = (rawData['format'] as String?)?.trim() ?? '';
+      if (format.isEmpty) {
+        final dotIndex = originalFilename.lastIndexOf('.');
+        if (dotIndex != -1 && dotIndex < originalFilename.length - 1) {
+          format = originalFilename.substring(dotIndex + 1).toLowerCase();
+        }
+      }
+
       return {
         'public_id': response.publicId,
-        'format': rawData['format'] as String? ?? '',
+        'format': format,
         'resource_type': resourceTypeValue,
         'original_filename': originalFilename,
         'size_bytes': sizeBytes,
