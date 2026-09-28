@@ -7,7 +7,7 @@ import 'controllers/auth_controller.dart';
 import 'controllers/material_controller.dart';
 import 'controllers/transaction_controller.dart';
 import 'login_page.dart';
-import 'views/admin/admin_homepage.dart';
+import 'views/admin/admin_navbar.dart';
 import 'views/student/navbar.dart';
 
 
@@ -62,7 +62,13 @@ class AuthGate extends StatelessWidget {
     return Consumer<AuthController>(
       builder: (context, auth, _) {
         if (!auth.isLoggedIn) return const LoginPage();
-        return auth.isAdmin ? const AdminHomepage() : const StudentNavBar();
+        if (auth.currentUserProfile == null) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        return auth.isAdmin ? const AdminNavBar() : const StudentNavBar();
       },
     );
   }

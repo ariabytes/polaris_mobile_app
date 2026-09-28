@@ -27,8 +27,8 @@ class _StudentProfileViewState extends State<StudentProfileView> {
     // Adjust which fields count as "required" as you see fit.
     return profile.university == null ||
         profile.university!.isEmpty ||
-        profile.course == null ||
-        profile.course!.isEmpty ||
+        profile.program == null ||
+        profile.program!.isEmpty ||
         profile.yearLevel == null ||
         profile.yearLevel!.isEmpty;
   }
@@ -214,9 +214,9 @@ class _StudentProfileViewState extends State<StudentProfileView> {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        if (profile.course != null && profile.yearLevel != null)
+                        if (profile.program != null && profile.yearLevel != null)
                           Text(
-                            '${profile.course} • ${profile.yearLevel}',
+                            '${profile.program} • ${profile.yearLevel}',
                             style: const TextStyle(color: Colors.black54, fontSize: 14),
                           ),
                         if (profile.bio != null && profile.bio!.isNotEmpty) ...[
@@ -266,7 +266,7 @@ class _StudentProfileViewState extends State<StudentProfileView> {
                     ListTile(
                       leading: const Icon(Icons.menu_book_outlined, color: navy),
                       title: const Text('Program'),
-                      subtitle: Text(profile.course ?? 'Not set'),
+                      subtitle: Text(profile.program ?? 'Not set'),
                     ),
                     ListTile(
                       leading: const Icon(Icons.cake_outlined, color: navy),
@@ -333,7 +333,19 @@ class _StatsStrip extends StatelessWidget {
         return StreamBuilder<double>(
           stream: transactionController.sellerTotalEarnings(uid),
           builder: (context, earningsSnap) {
+            if (earningsSnap.hasError) {
+              // Likely cause: missing Firestore composite index for
+              // transactions(seller_id, purchased_at). Check the debug
+              // console for a "FAILED_PRECONDITION" error with a link to
+              // create it, or add it manually in the Firestore console
+              // under Indexes.
+              debugPrint('sellerTotalEarnings stream error: ${earningsSnap.error}');
+            }
+
             final earnings = earningsSnap.data ?? 0;
+            final earningsDisplay = earningsSnap.hasError
+                ? '⚠️'
+                : '₱${earnings.toStringAsFixed(0)}';
 
             return Row(
               children: [
@@ -344,7 +356,7 @@ class _StatsStrip extends StatelessWidget {
                 Expanded(
                   child: _StatCard(
                     label: 'Earnings',
-                    value: '₱${earnings.toStringAsFixed(0)}',
+                    value: earningsDisplay,
                     color: gold,
                   ),
                 ),

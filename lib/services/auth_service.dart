@@ -142,6 +142,19 @@ class AuthService {
     });
   }
 
+  Stream<List<UserModel>> streamAllUsers() {
+    return _db
+        .collection('users')
+        .orderBy('created_at', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => UserModel.fromMap(d.id, d.data())).toList());
+  }
+
+  // ADMIN
+  Future<void> deleteUserDocument(String uid) async {
+    await _db.collection('users').doc(uid).delete();
+  }
+
   Future<void> updateProfilePhoto(String uid, Map<String, dynamic> profilePhoto) async {
     await _db.collection('users').doc(uid).update({
       'profile_photo': profilePhoto,
@@ -149,9 +162,6 @@ class AuthService {
     });
   }
 
-  /// Partial update for the My Profile edit fields (birthday, university,
-  /// college, course, year_level, bio, name). Caller passes only the keys
-  /// that changed — untouched fields are left alone by Firestore's update().
   Future<void> updateUserProfile(String uid, Map<String, dynamic> data) async {
     await _db.collection('users').doc(uid).update({
       ...data,

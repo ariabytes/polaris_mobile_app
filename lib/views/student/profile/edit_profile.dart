@@ -31,7 +31,7 @@ class _EditProfileViewState extends State<EditProfileView> {
   late final TextEditingController _nameController;
   late final TextEditingController _universityController;
   late final TextEditingController _collegeController;
-  late final TextEditingController _courseController;
+  late final TextEditingController _programController;
   late final TextEditingController _bioController;
 
   String? _selectedYearLevel;
@@ -60,8 +60,8 @@ class _EditProfileViewState extends State<EditProfileView> {
       text: profile?.college ?? '',
     );
 
-    _courseController = TextEditingController(
-      text: profile?.course ?? '',
+    _programController = TextEditingController(
+      text: profile?.program ?? '',
     );
 
     _bioController = TextEditingController(
@@ -77,7 +77,7 @@ class _EditProfileViewState extends State<EditProfileView> {
     _nameController.dispose();
     _universityController.dispose();
     _collegeController.dispose();
-    _courseController.dispose();
+    _programController.dispose();
     _bioController.dispose();
 
     super.dispose();
@@ -220,7 +220,7 @@ class _EditProfileViewState extends State<EditProfileView> {
       birthday: _selectedBirthday,
       university: _universityController.text.trim(),
       college: _collegeController.text.trim(),
-      course: _courseController.text.trim(),
+      program: _programController.text.trim(),
       yearLevel: _selectedYearLevel,
       bio: _bioController.text.trim(),
     );
@@ -408,10 +408,10 @@ class _EditProfileViewState extends State<EditProfileView> {
           // COURSE
           // ======================================================
 
-          const _FieldLabel('Program / Course'),
+          const _FieldLabel('Program'),
 
           TextField(
-            controller: _courseController,
+            controller: _programController,
             decoration: _inputDecoration(
               hint: 'e.g. BS Information Technology',
             ),

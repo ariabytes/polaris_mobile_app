@@ -17,6 +17,7 @@ class MaterialService {
     required String content,
     required String university,
     required String college,
+    required String program,
     required String course,
     required String semester,
     required String schoolYear,
@@ -33,6 +34,7 @@ class MaterialService {
       content: content,
       university: university,
       college: college,
+      program: program,
       course: course,
       semester: semester,
       schoolYear: schoolYear,
@@ -80,6 +82,8 @@ class MaterialService {
   // ---------- SOFT DELETE ----------
   /// Materials are never hard-deleted (transactions may reference them) —
   /// flip status to "removed" instead, which every read query filters out.
+  /// This is the OWNER-facing delete. See hardDeleteMaterial for the
+  /// admin-facing one.
   Future<void> removeMaterial(String materialId) async {
     await _materials.doc(materialId).update({
       'status': 'removed',
@@ -89,6 +93,27 @@ class MaterialService {
 
   Future<void> incrementViewCount(String materialId) async {
     await _materials.doc(materialId).update({'view_count': FieldValue.increment(1)});
+  }
+
+  // ---------- ADMIN HARD DELETE ----------
+  /// ADMIN ONLY — actually deletes the Firestore document, unlike
+  /// removeMaterial() which just flips status to "removed".
+  ///
+  /// Effects to be aware of:
+  /// - Any existing transaction docs that reference this material_id keep
+  ///   their own snapshot of price/buyer/seller, so no financial history is
+  ///   lost. But streamMaterial(materialId) will return null afterwards, so
+  ///   any screen that joins a transaction back to its material (e.g. "My
+  ///   Purchases" showing the title/cover) needs to handle a null material
+  ///   gracefully (e.g. "This material is no longer available").
+  /// - This does NOT delete the Cloudinary cover image or attachments.
+  ///   Cloudinary's destroy endpoint requires a signed request using your
+  ///   API secret, which must never be shipped inside the Flutter client —
+  ///   so without a backend (Cloud Function) those assets are simply
+  ///   orphaned. Clean them up manually via the Cloudinary console if
+  ///   storage usage matters to you.
+  Future<void> hardDeleteMaterial(String materialId) async {
+    await _materials.doc(materialId).delete();
   }
 
   // ---------- READS (Stream = real-time) ----------
@@ -103,16 +128,23 @@ class MaterialService {
         .map((snap) => snap.docs.map((d) => MaterialModel.fromMap(d.id, d.data())).toList());
   }
 
-  /// Public browse/search feed. course/university are optional exact-match
-  /// filters — add more as your search UI needs them.
+  /// Public browse/search feed. program/course/university are optional
+  /// exact-match filters — add more as your search UI needs them.
   /// NOTE: combining where() + whereIn() + orderBy() needs a Firestore
   /// composite index. Firestore will throw with a console link the first
   /// time you run this — just click it to auto-create the index.
-  Stream<List<MaterialModel>> streamPublicMaterials({String? course, String? university}) {
+  Stream<List<MaterialModel>> streamPublicMaterials({
+    String? program,
+    String? course,
+    String? university,
+  }) {
     Query<Map<String, dynamic>> query = _materials
         .where('status', isEqualTo: 'active')
         .where('visibility', whereIn: ['public_free', 'public_paid']);
 
+    if (program != null && program.isNotEmpty) {
+      query = query.where('program', isEqualTo: program);
+    }
     if (course != null && course.isNotEmpty) {
       query = query.where('course', isEqualTo: course);
     }
@@ -121,6 +153,17 @@ class MaterialService {
     }
 
     return query
+        .orderBy('created_at', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => MaterialModel.fromMap(d.id, d.data())).toList());
+  }
+
+  /// ADMIN ONLY — every material regardless of status ("removed" included)
+  /// or visibility ("private" included). Pair with a Firestore rule
+  /// restricting this query to users whose `users/{uid}.role == "admin"`;
+  /// this client-side call has no gating of its own.
+  Stream<List<MaterialModel>> streamAllMaterialsAdmin() {
+    return _materials
         .orderBy('created_at', descending: true)
         .snapshots()
         .map((snap) => snap.docs.map((d) => MaterialModel.fromMap(d.id, d.data())).toList());

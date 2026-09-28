@@ -23,8 +23,8 @@ class MaterialController extends ChangeNotifier {
   // ---------- READS ----------
   Stream<List<MaterialModel>> myMaterials(String ownerId) => _service.streamMyMaterials(ownerId);
 
-  Stream<List<MaterialModel>> publicMaterials({String? course, String? university}) =>
-      _service.streamPublicMaterials(course: course, university: university);
+  Stream<List<MaterialModel>> publicMaterials({String? program, String? course, String? university}) =>
+      _service.streamPublicMaterials(program: program, course: course, university: university);
 
   Stream<MaterialModel?> material(String materialId) => _service.streamMaterial(materialId);
 
@@ -40,6 +40,7 @@ class MaterialController extends ChangeNotifier {
     required String content,
     required String university,
     required String college,
+    required String program,
     required String course,
     required String semester,
     required String schoolYear,
@@ -56,6 +57,7 @@ class MaterialController extends ChangeNotifier {
         content: content,
         university: university,
         college: college,
+        program: program,
         course: course,
         semester: semester,
         schoolYear: schoolYear,
@@ -128,6 +130,8 @@ class MaterialController extends ChangeNotifier {
     }
   }
 
+  /// Owner-facing soft delete — flips status to 'removed'. Historical
+  /// transactions still resolve this material afterwards.
   Future<bool> removeMaterial(String materialId) async {
     _startSaving();
     try {
@@ -144,6 +148,41 @@ class MaterialController extends ChangeNotifier {
   /// a loading spinner.
   void registerView(String materialId) {
     _service.incrementViewCount(materialId);
+  }
+
+  // ---------- ADMIN ----------
+
+  /// Every material regardless of status or visibility — private and
+  /// removed materials included, unlike the public/owner-facing streams.
+  /// Gate access to whatever screen calls this with `isAdmin`; Firestore's
+  /// `isAdmin()` branch on /materials read rules is the real enforcement.
+  Stream<List<MaterialModel>> allMaterialsAdmin() => _service.streamAllMaterialsAdmin();
+
+  /// Hard-deletes a material document — NOT the same as removeMaterial()'s
+  /// status flip. Named differently on purpose so it's never confused with
+  /// the owner-facing soft delete.
+  ///
+  /// Any transactions referencing this material_id keep their own
+  /// buyer/seller/price snapshot, so no financial history is lost, but
+  /// streamMaterial(materialId) will return null afterwards — screens that
+  /// join a transaction back to its material (e.g. "My Purchases" showing
+  /// the title/cover) need to handle that gracefully.
+  ///
+  /// Does NOT delete the material's Cloudinary cover image or attachments
+  /// — that requires a signed request with your Cloudinary API secret,
+  /// which can't live in this client app. Without a backend, those assets
+  /// are orphaned; clean them up manually via the Cloudinary console if
+  /// storage usage matters.
+  Future<bool> deleteMaterialPermanently(String materialId) async {
+    _startSaving();
+    try {
+      await _service.hardDeleteMaterial(materialId);
+      _finishSaving();
+      return true;
+    } catch (_) {
+      _failSaving('Could not delete this material. Please try again.');
+      return false;
+    }
   }
 
   void clearError() {

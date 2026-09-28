@@ -261,7 +261,7 @@ class AuthController extends ChangeNotifier {
     DateTime? birthday,
     String? university,
     String? college,
-    String? course,
+    String? program,
     String? yearLevel,
     String? bio,
   }) async {
@@ -288,10 +288,10 @@ class AuthController extends ChangeNotifier {
             ? null
             : college?.trim();
 
-    final cleanedCourse =
-        course?.trim().isEmpty == true
+    final cleanedProgram =
+        program?.trim().isEmpty == true
             ? null
-            : course?.trim();
+            : program?.trim();
 
     final cleanedYearLevel =
         yearLevel?.trim().isEmpty == true
@@ -312,7 +312,7 @@ class AuthController extends ChangeNotifier {
 
       'university': cleanedUniversity,
       'college': cleanedCollege,
-      'course': cleanedCourse,
+      'program': cleanedProgram,
       'year_level': cleanedYearLevel,
       'bio': cleanedBio,
     };
@@ -341,6 +341,57 @@ class AuthController extends ChangeNotifier {
 
       _errorMessage =
           'Could not update your profile. Please try again.';
+
+      notifyListeners();
+
+      return false;
+    }
+  }
+
+  // ============================================================
+  // ADMIN
+  // ============================================================
+
+  /// Every user profile on the platform — for the admin dashboard's user
+  /// list. Gate access to whatever screen calls this with `isAdmin`;
+  /// Firestore's `allow list: if isAdmin()` on /users is the real
+  /// enforcement, this is just a UI-level convenience.
+  Stream<List<UserModel>> allUsers() => _authService.streamAllUsers();
+
+  /// Deletes a user's Firestore profile document ONLY.
+  ///
+  /// A client app cannot delete another user's Firebase Auth account — the
+  /// SDK only allows a user to delete themselves
+  /// (`FirebaseAuth.instance.currentUser.delete()`). Deleting an arbitrary
+  /// other account requires the Admin SDK, i.e. a Cloud Function this
+  /// project doesn't have. So after this succeeds, the deleted person's
+  /// login credentials still work; they'll just find no profile document.
+  ///
+  /// Worth revisiting later: have `_onAuthStateChanged` treat a signed-in
+  /// Firebase user whose `getUserData` comes back null as "deleted" and
+  /// force `signOut()`, so a deleted account can't linger in a broken
+  /// logged-in state.
+  ///
+  /// Reuses `isLoading`/`errorMessage` like every other write here — a
+  /// given admin screen only triggers one of these at a time.
+  Future<bool> deleteUser(String uid) async {
+    _startLoading();
+
+    try {
+      await _authService.deleteUserDocument(uid);
+
+      _isLoading = false;
+      _errorMessage = null;
+
+      notifyListeners();
+
+      return true;
+    } catch (e, stackTrace) {
+      debugPrint('DELETE USER ERROR: $e');
+      debugPrintStack(stackTrace: stackTrace);
+
+      _isLoading = false;
+      _errorMessage = 'Could not delete this user. Please try again.';
 
       notifyListeners();
 

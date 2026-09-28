@@ -8,7 +8,8 @@ class MaterialModel {
   final String content; // markdown
   final String university;
   final String college;
-  final String course;
+  final String program; // degree program, e.g. "BS Information Technology"
+  final String course; // subject/class, e.g. "Data Structures and Algorithms"
   final String semester;
   final String schoolYear;
   final String? professor;
@@ -31,6 +32,7 @@ class MaterialModel {
     required this.content,
     required this.university,
     required this.college,
+    required this.program,
     required this.course,
     required this.semester,
     required this.schoolYear,
@@ -61,6 +63,7 @@ class MaterialModel {
       content: data['content'] ?? '',
       university: data['university'] ?? '',
       college: data['college'] ?? '',
+      program: data['program'] ?? '',
       course: data['course'] ?? '',
       semester: data['semester'] ?? '',
       schoolYear: data['school_year'] ?? '',
@@ -89,6 +92,7 @@ class MaterialModel {
       'content': content,
       'university': university,
       'college': college,
+      'program': program,
       'course': course,
       'semester': semester,
       'school_year': schoolYear,

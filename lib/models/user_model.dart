@@ -16,7 +16,7 @@ class UserModel {
   final DateTime? birthday;
   final String? university;
   final String? college; // department
-  final String? course; // program
+  final String? program;
   final String? yearLevel;
   final String? bio;
   final Map<String, dynamic>? profilePhoto;
@@ -31,7 +31,7 @@ class UserModel {
     this.birthday,
     this.university,
     this.college,
-    this.course,
+    this.program,
     this.yearLevel,
     this.bio,
     this.profilePhoto,
@@ -66,7 +66,7 @@ class UserModel {
 
       university: data['university'] as String?,
       college: data['college'] as String?,
-      course: data['course'] as String?,
+      program: data['program'] as String?,
       yearLevel: data['year_level'] as String?,
       bio: data['bio'] as String?,
 
@@ -96,7 +96,7 @@ class UserModel {
 
       'university': university,
       'college': college,
-      'course': course,
+      'program': program,
       'year_level': yearLevel,
       'bio': bio,
       'profile_photo': profilePhoto,
@@ -119,8 +119,8 @@ class UserModel {
     String? college,
     bool clearCollege = false,
 
-    String? course,
-    bool clearCourse = false,
+    String? program,
+    bool clearProgram = false,
 
     String? yearLevel,
     bool clearYearLevel = false,
@@ -159,9 +159,9 @@ class UserModel {
           ? null
           : college ?? this.college,
 
-      course: clearCourse
+      program: clearProgram
           ? null
-          : course ?? this.course,
+          : program ?? this.program,
 
       yearLevel: clearYearLevel
           ? null

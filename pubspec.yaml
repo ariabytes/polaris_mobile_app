@@ -49,7 +49,6 @@ dependencies:
   markdown: ^7.3.1
   url_launcher: ^6.3.1
   webview_flutter: ^4.10.0
-  syncfusion_flutter_pdfviewer: ^33.2.13
 
 dev_dependencies:
   flutter_test:

@@ -4,6 +4,8 @@ import 'student_homepage.dart';
 import 'package:polaris_mobile_app/views/student/profile/student_profile.dart';
 import 'package:polaris_mobile_app/views/student/material/create_material.dart';
 import 'package:polaris_mobile_app/views/student/material/my_materials.dart';
+import 'package:polaris_mobile_app/views/student/discover/discover_page.dart';
+
 
 class StudentNavBar extends StatefulWidget {
   const StudentNavBar({super.key});
@@ -24,11 +26,7 @@ class _StudentNavBarState extends State<StudentNavBar> {
 
   final List<Widget> _screens = const [
     StudentHomepage(),
-    Placeholder(
-      child: Center(
-        child: Text('Discover'),
-      ),
-    ),
+    DiscoverPage(),
     MyMaterialsView(),
     StudentProfileView(),
   ];

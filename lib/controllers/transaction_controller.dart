@@ -70,6 +70,31 @@ class TransactionController extends ChangeNotifier {
     }
   }
 
+  /// Free-tier equivalent of purchaseMaterial — records a $0 transaction so
+  /// a saved free material shows up alongside real purchases in My
+  /// Purchases / My Materials → Purchased. Reuses isPurchasing/errorMessage
+  /// since a given screen only ever triggers one of the two at a time.
+  Future<bool> saveFreeMaterial({
+    required String materialId,
+    required String buyerId,
+  }) async {
+    _isPurchasing = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _service.saveFreeMaterial(materialId: materialId, buyerId: buyerId);
+      _isPurchasing = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _isPurchasing = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   void clearError() {
     _errorMessage = null;
     notifyListeners();
