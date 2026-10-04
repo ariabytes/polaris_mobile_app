@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloudinary_public/cloudinary_public.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -10,13 +9,21 @@ import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/storage_service.dart';
 
+/// Handles login state, registration, and the current user's profile.
+/// All validation lives here so the views only display results.
 class AuthController extends ChangeNotifier {
+  static const int resendCooldownSeconds = 60;
+
+  static final RegExp _emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+
+  /// Shared email check, also used by the forgot-password dialog.
+  static bool isValidEmail(String email) => _emailRegex.hasMatch(email.trim());
+
   final AuthService _authService;
   final StorageService _storage = StorageService();
 
   late final StreamSubscription<User?> _authSub;
-
-  static final RegExp _emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+  Timer? _cooldownTimer;
 
   AuthController({AuthService? authService})
       : _authService = authService ?? AuthService() {
@@ -27,11 +34,15 @@ class AuthController extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
   String? _infoMessage;
+  int _resendCooldown = 0;
 
   UserModel? get currentUserProfile => _currentUserProfile;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   String? get infoMessage => _infoMessage;
+
+  /// Seconds left before another verification email can be requested.
+  int get resendCooldown => _resendCooldown;
 
   bool get isLoggedIn {
     final u = _authService.currentUser;
@@ -48,6 +59,8 @@ class AuthController extends ChangeNotifier {
     return _authService.streamUserData(uid);
   }
 
+  // ---------- AUTH STATE ----------
+
   Future<void> _onAuthStateChanged(User? firebaseUser) async {
     if (firebaseUser == null || !firebaseUser.emailVerified) {
       _currentUserProfile = null;
@@ -59,8 +72,11 @@ class AuthController extends ChangeNotifier {
       final profile = await _authService.getUserData(firebaseUser.uid);
       if (_authService.currentUser?.uid != firebaseUser.uid) return;
       _currentUserProfile = profile;
-    } catch (e) {
-      debugPrint('PROFILE LOAD ERROR: $e');
+    } catch (_) {
+      // Without a profile the app would show a loading spinner forever,
+      // so sign the user out and let them log in again.
+      await logout();
+      return;
     }
     notifyListeners();
   }
@@ -70,15 +86,23 @@ class AuthController extends ChangeNotifier {
       final u = _authService.currentUser;
       _currentUserProfile =
           u == null ? null : await _authService.getUserData(u.uid);
-    } catch (e) {
-      debugPrint('PROFILE REFRESH ERROR: $e');
+    } catch (_) {
+      // Keep the previous profile; _onAuthStateChanged handles hard failures.
     }
   }
+
+  // ---------- LOGIN / REGISTER ----------
 
   Future<bool> login({
     required String email,
     required String password,
   }) async {
+    if (_isLoading) return false;
+
+    if (email.trim().isEmpty || password.isEmpty) {
+      return _fail('Please enter your email and password.');
+    }
+
     _startLoading();
     try {
       final error = await _authService.signIn(
@@ -98,6 +122,18 @@ class AuthController extends ChangeNotifier {
     required String email,
     required String password,
   }) async {
+    if (_isLoading) return false;
+
+    if (name.trim().isEmpty || email.trim().isEmpty || password.isEmpty) {
+      return _fail('Please fill in all fields.');
+    }
+    if (!isValidEmail(email)) {
+      return _fail('Please enter a valid email address.');
+    }
+    if (password.length < 6) {
+      return _fail('Password must be at least 6 characters.');
+    }
+
     _startLoading();
     try {
       final error = await _authService.register(
@@ -119,12 +155,16 @@ class AuthController extends ChangeNotifier {
     required String email,
     required String password,
   }) async {
+    if (_isLoading || _resendCooldown > 0) return false;
+
     final cleaned = email.trim();
-    if (!_emailRegex.hasMatch(cleaned)) {
-      return _fail('Please enter a valid email address.');
+    if (cleaned.isEmpty || password.isEmpty) {
+      return _fail(
+        'Enter your email and password above, then tap "Resend verification email".',
+      );
     }
-    if (password.isEmpty) {
-      return _fail('Please enter your password.');
+    if (!isValidEmail(cleaned)) {
+      return _fail('Please enter a valid email address.');
     }
 
     _startLoading();
@@ -138,6 +178,7 @@ class AuthController extends ChangeNotifier {
       _currentUserProfile = null;
       _infoMessage =
           'Verification email sent. Check your inbox and your spam folder.';
+      _startResendCooldown();
       return _succeed();
     } catch (_) {
       return _fail('Could not send the email. Please try again.');
@@ -145,6 +186,8 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<bool> signInWithGoogle() async {
+    if (_isLoading) return false;
+
     _startLoading();
     try {
       final error = await _authService.signInWithGoogle();
@@ -153,6 +196,7 @@ class AuthController extends ChangeNotifier {
       }
       if (error != null) return _fail(error);
 
+      // Brand-new Google users get their profile document during sign-in.
       await _refreshProfile();
       return _succeed();
     } catch (_) {
@@ -161,18 +205,15 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<bool> resetPassword(String email) async {
-    final cleaned = email.trim();
-    if (!_emailRegex.hasMatch(cleaned)) {
-      _isLoading = false;
-      _errorMessage = 'Please enter a valid email address.';
-      _infoMessage = null;
-      notifyListeners();
-      return false;
+    if (_isLoading) return false;
+
+    if (!isValidEmail(email)) {
+      return _fail('Please enter a valid email address.');
     }
 
     _startLoading();
     try {
-      final error = await _authService.sendPasswordResetEmail(cleaned);
+      final error = await _authService.sendPasswordResetEmail(email.trim());
       if (error != null) return _fail(error);
 
       _infoMessage = 'Password reset link sent. Check your inbox (or spam).';
@@ -185,14 +226,15 @@ class AuthController extends ChangeNotifier {
   Future<void> logout() async {
     try {
       await _authService.signOut();
-    } catch (e) {
-      debugPrint('LOGOUT ERROR: $e');
+    } catch (_) {
+      // Signing out locally below still clears the UI state.
     } finally {
       _currentUserProfile = null;
       notifyListeners();
     }
   }
 
+  // ---------- PROFILE ----------
 
   Future<bool> uploadProfilePhoto(
     String uid,
@@ -211,19 +253,9 @@ class AuthController extends ChangeNotifier {
 
       await _authService.updateProfilePhoto(uid, result);
       _currentUserProfile = await _authService.getUserData(uid);
-
-      _isLoading = false;
-      _errorMessage = null;
-      notifyListeners();
-      return true;
-    } catch (e, stackTrace) {
-      debugPrint('PROFILE PHOTO UPLOAD FAILED: $e');
-      debugPrintStack(stackTrace: stackTrace);
-
-      _isLoading = false;
-      _errorMessage = 'Could not upload profile photo. Please try again.';
-      notifyListeners();
-      return false;
+      return _succeed();
+    } catch (_) {
+      return _fail('Could not upload profile photo. Please try again.');
     }
   }
 
@@ -238,71 +270,72 @@ class AuthController extends ChangeNotifier {
   }) async {
     final uid = _authService.currentUser?.uid;
     if (uid == null) {
-      _errorMessage = 'No logged-in user found.';
-      notifyListeners();
-      return false;
+      return _fail('No logged-in user found.');
     }
 
     final cleanedName = name?.trim() ?? '';
     if (cleanedName.isEmpty) {
-      _errorMessage = 'Name cannot be empty.';
-      notifyListeners();
-      return false;
+      return _fail('Name cannot be empty.');
     }
 
     _startLoading();
-
-    String? clean(String? v) {
-      final t = v?.trim();
-      return (t == null || t.isEmpty) ? null : t;
-    }
-
-    final data = <String, dynamic>{
-      'name': cleanedName,
-      'birthday': birthday != null ? Timestamp.fromDate(birthday) : null,
-      'university': clean(university),
-      'college': clean(college),
-      'program': clean(program),
-      'year_level': clean(yearLevel),
-      'bio': clean(bio),
-    };
-
     try {
-      await _authService.updateUserProfile(uid, data);
+      await _authService.updateUserProfile(
+        uid,
+        name: cleanedName,
+        birthday: birthday,
+        university: university,
+        college: college,
+        program: program,
+        yearLevel: yearLevel,
+        bio: bio,
+      );
       _currentUserProfile = await _authService.getUserData(uid);
-      _isLoading = false;
-      _errorMessage = null;
-      notifyListeners();
-      return true;
-    } catch (e, stackTrace) {
-      debugPrint('PROFILE UPDATE ERROR: $e');
-      debugPrintStack(stackTrace: stackTrace);
-      _isLoading = false;
-      _errorMessage = 'Could not update your profile. Please try again.';
-      notifyListeners();
-      return false;
+      return _succeed();
+    } catch (_) {
+      return _fail('Could not update your profile. Please try again.');
     }
   }
 
-  
+  /// Live profile of any user (used to show a material's creator).
+  Stream<UserModel?> userStream(String uid) => _authService.streamUserData(uid);
+
+  // ---------- ADMIN ----------
+
   Stream<List<UserModel>> allUsers() => _authService.streamAllUsers();
 
+  /// Admin only. Admins cannot delete their own account or other admins.
   Future<bool> deleteUser(String uid) async {
+    if (uid == _authService.currentUser?.uid) {
+      return _fail('You cannot delete your own account.');
+    }
+
     _startLoading();
     try {
+      final target = await _authService.getUserData(uid);
+      if (target?.isAdmin ?? false) {
+        return _fail('Admin accounts cannot be deleted.');
+      }
       await _authService.deleteUserDocument(uid);
-      _isLoading = false;
-      _errorMessage = null;
-      notifyListeners();
-      return true;
-    } catch (e, stackTrace) {
-      debugPrint('DELETE USER ERROR: $e');
-      debugPrintStack(stackTrace: stackTrace);
-      _isLoading = false;
-      _errorMessage = 'Could not delete this user. Please try again.';
-      notifyListeners();
-      return false;
+      return _succeed();
+    } catch (_) {
+      return _fail('Could not delete this user. Please try again.');
     }
+  }
+
+  // ---------- PRIVATE HELPERS ----------
+
+  void _startResendCooldown() {
+    _cooldownTimer?.cancel();
+    _resendCooldown = resendCooldownSeconds;
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      _resendCooldown--;
+      if (_resendCooldown <= 0) {
+        _resendCooldown = 0;
+        timer.cancel();
+      }
+      notifyListeners();
+    });
   }
 
   void _startLoading() {
@@ -321,6 +354,7 @@ class AuthController extends ChangeNotifier {
 
   bool _succeed() {
     _isLoading = false;
+    _errorMessage = null;
     notifyListeners();
     return true;
   }
@@ -328,6 +362,7 @@ class AuthController extends ChangeNotifier {
   @override
   void dispose() {
     _authSub.cancel();
+    _cooldownTimer?.cancel();
     super.dispose();
   }
 }

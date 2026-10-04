@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -7,8 +6,8 @@ import 'package:polaris_mobile_app/controllers/auth_controller.dart';
 import 'package:polaris_mobile_app/services/theme_service.dart';
 import 'register_page.dart';
 
-final RegExp _emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-
+/// Login screen. It only collects input and shows messages;
+/// validation and the resend cooldown live in AuthController.
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -17,73 +16,58 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  Color get cream => context.pc.background;
-  Color get navy => context.pc.ink;
-  Color get gold => context.pc.star;
-  Color get mutedColor => context.pc.muted;
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
-  static const int _resendCooldownSeconds = 60;
-
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-
-  bool obscurePassword = true;
-
-  Timer? _cooldownTimer;
-  int _resendCooldown = 0;
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
-    _cooldownTimer?.cancel();
-    emailController.dispose();
-    passwordController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
-  Future<void> login() async {
-    final auth = context.read<AuthController>();
-    if (auth.isLoading) return;
-    FocusScope.of(context).unfocus();
-
-    final email = emailController.text.trim();
-    final password = passwordController.text;
-
-    if (email.isEmpty || password.isEmpty) {
-      showMessage('Please enter your email and password.');
-      return;
-    }
-
-    final success = await auth.login(email: email, password: password);
-
-    if (!mounted) return;
-
-    if (!success) {
-      showMessage(auth.errorMessage ?? 'Login failed.');
-    }
+  void _showMessage(String? message, {bool isError = true}) {
+    if (!mounted || message == null) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: isError ? context.pc.danger : null,
+        ),
+      );
   }
 
-  Future<void> googleLogin() async {
-    final auth = context.read<AuthController>();
-    if (auth.isLoading) return;
+  Future<void> _login() async {
     FocusScope.of(context).unfocus();
+    final auth = context.read<AuthController>();
+
+    final success = await auth.login(
+      email: _emailController.text,
+      password: _passwordController.text,
+    );
+
+    if (!success) _showMessage(auth.errorMessage);
+  }
+
+  Future<void> _googleLogin() async {
+    FocusScope.of(context).unfocus();
+    final auth = context.read<AuthController>();
 
     final success = await auth.signInWithGoogle();
 
-    if (!mounted) return;
-
-    if (!success && auth.errorMessage != null) {
-      showMessage(auth.errorMessage!);
-    }
+    if (!success) _showMessage(auth.errorMessage);
   }
 
-  Future<void> forgotPassword() async {
+  Future<void> _forgotPassword() async {
     final auth = context.read<AuthController>();
-    if (auth.isLoading) return;
 
     final email = await showDialog<String>(
       context: context,
       builder: (_) => _ForgotPasswordDialog(
-        initialEmail: emailController.text.trim(), 
+        initialEmail: _emailController.text.trim(),
       ),
     );
 
@@ -91,88 +75,32 @@ class _LoginPageState extends State<LoginPage> {
 
     final success = await auth.resetPassword(email);
 
-    if (!mounted) return;
-
-    if (success) {
-      showMessage(
-        auth.infoMessage ?? 'Password reset link sent.',
-        isError: false,
-      );
-    } else {
-      showMessage(auth.errorMessage ?? 'Could not send reset email.');
-    }
+    _showMessage(
+      success ? auth.infoMessage : auth.errorMessage,
+      isError: !success,
+    );
   }
 
-  Future<void> resendVerification() async {
-    final auth = context.read<AuthController>();
-    if (auth.isLoading || _resendCooldown > 0) return;
+  Future<void> _resendVerification() async {
     FocusScope.of(context).unfocus();
-
-    final email = emailController.text.trim();
-    final password = passwordController.text;
-
-    if (email.isEmpty || password.isEmpty) {
-      showMessage(
-        'Enter your email and password above, then tap "Resend verification email".',
-      );
-      return;
-    }
-    if (!_emailRegex.hasMatch(email)) {
-      showMessage('Please enter a valid email address.');
-      return;
-    }
+    final auth = context.read<AuthController>();
 
     final success = await auth.resendVerificationEmail(
-      email: email,
-      password: password,
+      email: _emailController.text,
+      password: _passwordController.text,
     );
 
-    if (!mounted) return;
-
-    if (success) {
-      showMessage(
-        auth.infoMessage ?? 'Verification email sent.',
-        isError: false,
-      );
-      _startCooldown();
-    } else {
-      showMessage(auth.errorMessage ?? 'Could not send the email.');
-    }
-  }
-
-  void _startCooldown() {
-    _cooldownTimer?.cancel();
-    setState(() => _resendCooldown = _resendCooldownSeconds);
-    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      if (_resendCooldown <= 1) {
-        timer.cancel();
-        setState(() => _resendCooldown = 0);
-      } else {
-        setState(() => _resendCooldown--);
-      }
-    });
-  }
-
-  void showMessage(String message, {bool isError = true}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: isError ? const Color(0xFFC0252B) : null,
-        ),
-      );
+    _showMessage(
+      success ? auth.infoMessage : auth.errorMessage,
+      isError: !success,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
-    final resendDisabled = auth.isLoading || _resendCooldown > 0;
+    final pc = context.pc;
+    final resendDisabled = auth.isLoading || auth.resendCooldown > 0;
 
     return Scaffold(
       body: SafeArea(
@@ -191,20 +119,20 @@ class _LoginPageState extends State<LoginPage> {
                       fontSize: 35,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.0,
-                      color: navy,
+                      color: pc.ink,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Sign in to continue',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16, color: mutedColor),
+                    style: TextStyle(fontSize: 16, color: pc.muted),
                   ),
                   const SizedBox(height: 36),
 
                   // EMAIL
                   TextField(
-                    controller: emailController,
+                    controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
                     autofillHints: const [AutofillHints.email],
@@ -217,19 +145,19 @@ class _LoginPageState extends State<LoginPage> {
 
                   // PASSWORD
                   TextField(
-                    controller: passwordController,
-                    obscureText: obscurePassword,
+                    controller: _passwordController,
+                    obscureText: _obscurePassword,
                     textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => login(),
+                    onSubmitted: (_) => _login(),
                     decoration: InputDecoration(
                       labelText: 'Password',
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         onPressed: () => setState(
-                          () => obscurePassword = !obscurePassword,
+                          () => _obscurePassword = !_obscurePassword,
                         ),
                         icon: Icon(
-                          obscurePassword
+                          _obscurePassword
                               ? Icons.visibility_outlined
                               : Icons.visibility_off_outlined,
                         ),
@@ -242,11 +170,11 @@ class _LoginPageState extends State<LoginPage> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
-                      onPressed: auth.isLoading ? null : forgotPassword,
+                      onPressed: auth.isLoading ? null : _forgotPassword,
                       child: Text(
                         'Forgot Password?',
                         style: TextStyle(
-                          color: navy,
+                          color: pc.ink,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -258,14 +186,14 @@ class _LoginPageState extends State<LoginPage> {
                   SizedBox(
                     height: 52,
                     child: ElevatedButton(
-                      onPressed: auth.isLoading ? null : login,
+                      onPressed: auth.isLoading ? null : _login,
                       child: auth.isLoading
                           ? SizedBox(
                               height: 24,
                               width: 24,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2.5,
-                                color: cream,
+                                color: pc.background,
                               ),
                             )
                           : const Text(
@@ -282,13 +210,13 @@ class _LoginPageState extends State<LoginPage> {
                   // RESEND VERIFICATION
                   Center(
                     child: TextButton(
-                      onPressed: resendDisabled ? null : resendVerification,
+                      onPressed: resendDisabled ? null : _resendVerification,
                       child: Text(
-                        _resendCooldown > 0
-                            ? 'Resend verification email (${_resendCooldown}s)'
+                        auth.resendCooldown > 0
+                            ? 'Resend verification email (${auth.resendCooldown}s)'
                             : 'Resend verification email',
                         style: TextStyle(
-                          color: resendDisabled ? mutedColor : navy,
+                          color: resendDisabled ? pc.muted : pc.ink,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -299,12 +227,12 @@ class _LoginPageState extends State<LoginPage> {
                   // OR DIVIDER
                   Row(
                     children: [
-                      Expanded(child: Divider(color: context.pc.line)),
+                      Expanded(child: Divider(color: pc.line)),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Text('OR', style: TextStyle(color: mutedColor)),
+                        child: Text('OR', style: TextStyle(color: pc.muted)),
                       ),
-                      Expanded(child: Divider(color: context.pc.line)),
+                      Expanded(child: Divider(color: pc.line)),
                     ],
                   ),
                   const SizedBox(height: 20),
@@ -313,7 +241,7 @@ class _LoginPageState extends State<LoginPage> {
                   SizedBox(
                     height: 52,
                     child: ElevatedButton.icon(
-                      onPressed: auth.isLoading ? null : googleLogin,
+                      onPressed: auth.isLoading ? null : _googleLogin,
                       icon: const FaIcon(FontAwesomeIcons.google, size: 20),
                       label: const Text(
                         'Continue with Google',
@@ -323,8 +251,8 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: context.pc.field,
-                        foregroundColor: context.pc.ink,
+                        backgroundColor: pc.field,
+                        foregroundColor: pc.ink,
                       ),
                     ),
                   ),
@@ -336,7 +264,7 @@ class _LoginPageState extends State<LoginPage> {
                     children: [
                       Text(
                         "Don't have an account? ",
-                        style: TextStyle(color: mutedColor),
+                        style: TextStyle(color: pc.muted),
                       ),
                       TextButton(
                         onPressed: auth.isLoading
@@ -350,7 +278,7 @@ class _LoginPageState extends State<LoginPage> {
                         child: Text(
                           'Register',
                           style: TextStyle(
-                            color: navy,
+                            color: pc.ink,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -367,10 +295,8 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-// -----------------------------------------------------------------------------
-// FORGOT PASSWORD DIALOG
-// Owns its own TextEditingController so it is disposed safely with the dialog.
-// -----------------------------------------------------------------------------
+/// Asks for an email address. Owns its own controller so it is disposed
+/// together with the dialog.
 class _ForgotPasswordDialog extends StatefulWidget {
   const _ForgotPasswordDialog({required this.initialEmail});
 
@@ -398,7 +324,7 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
 
   void _submit() {
     final email = _controller.text.trim();
-    if (!_emailRegex.hasMatch(email)) {
+    if (!AuthController.isValidEmail(email)) {
       setState(() => _error = 'Enter a valid email address.');
       return;
     }

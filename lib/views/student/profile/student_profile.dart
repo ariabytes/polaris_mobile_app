@@ -310,10 +310,6 @@ class _StatsStrip extends StatelessWidget {
         return StreamBuilder<double>(
           stream: transactionController.sellerTotalEarnings(uid),
           builder: (context, earningsSnap) {
-            if (earningsSnap.hasError) {
-              debugPrint('sellerTotalEarnings stream error: ${earningsSnap.error}');
-            }
-
             final earnings = earningsSnap.data ?? 0;
             final earningsDisplay = earningsSnap.hasError
                 ? '⚠️'

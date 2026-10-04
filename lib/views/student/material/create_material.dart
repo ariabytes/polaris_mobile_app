@@ -206,31 +206,19 @@ class _CreateMaterialViewState extends State<CreateMaterialView> {
     final uid = profile?.userId;
     if (uid == null) return;
 
-    final newMaterialId = await materialController.createMaterial(
+    final newMaterialId = await materialController.createTextMaterial(
       ownerId: uid,
       title: title,
       description: description,
       content: markdownContent,
-      university: details['university']!,
-      college: details['college']!,
-      program: details['program']!,
-      course: details['course']!,
-      semester: details['semester']!,
-      schoolYear: details['schoolYear']!,
-      professor: (details['professor'] ?? '').isEmpty
-          ? null
-          : details['professor'],
-      visibility: details['visibility'] ?? 'private',
-      price: details['visibility'] == 'public_paid'
-          ? double.tryParse(details['price'] ?? '')
-          : null,
+      details: details,
+      cover: _coverFile,
+      coverFilename: _coverFilename,
     );
 
     if (!mounted) return;
 
     if (newMaterialId != null) {
-      await _uploadCoverIfPicked(materialController, newMaterialId);
-      if (!mounted) return;
       Navigator.of(context).pop();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(

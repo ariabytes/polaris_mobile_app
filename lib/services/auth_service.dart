@@ -225,11 +225,28 @@ class AuthService {
   }
 
   Future<void> updateUserProfile(
-    String uid,
-    Map<String, dynamic> data,
-  ) async {
+    String uid, {
+    required String name,
+    DateTime? birthday,
+    String? university,
+    String? college,
+    String? program,
+    String? yearLevel,
+    String? bio,
+  }) async {
+    String? clean(String? v) {
+      final t = v?.trim();
+      return (t == null || t.isEmpty) ? null : t;
+    }
+
     await _db.collection('users').doc(uid).update({
-      ...data,
+      'name': name,
+      'birthday': birthday != null ? Timestamp.fromDate(birthday) : null,
+      'university': clean(university),
+      'college': clean(college),
+      'program': clean(program),
+      'year_level': clean(yearLevel),
+      'bio': clean(bio),
       'updated_at': FieldValue.serverTimestamp(),
     });
   }

@@ -135,7 +135,6 @@ class _MyMaterialsGrid extends StatelessWidget {
           // Likely cause: missing Firestore composite index for
           // materials(owner_id, created_at). Check the debug console for a
           // "FAILED_PRECONDITION" error with a link to create it.
-          debugPrint('myMaterials stream error: ${snapshot.error}');
           return const _EmptyRow(
             icon: Icons.error_outline,
             message: 'Could not load your materials right now.',
@@ -236,7 +235,6 @@ class _PurchasedMaterialsGrid extends StatelessWidget {
           // transactions(buyer_id, purchased_at). Check the debug console
           // for a "FAILED_PRECONDITION" error with a link to create it, or
           // add it manually in the Firestore console under Indexes.
-          debugPrint('myPurchases stream error: ${snapshot.error}');
           return const _EmptyRow(
             icon: Icons.error_outline,
             message: 'Could not load your purchases right now.',

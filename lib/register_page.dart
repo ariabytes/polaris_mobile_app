@@ -4,8 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:polaris_mobile_app/controllers/auth_controller.dart';
 import 'package:polaris_mobile_app/services/theme_service.dart';
 
-final RegExp _emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-
+/// Registration screen. It only collects input and shows messages;
+/// validation lives in AuthController.register().
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
 
@@ -14,21 +14,17 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  Color get cream => context.pc.background;
-  Color get navy => context.pc.ink;
-  Color get mutedColor => context.pc.muted;
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
-  final TextEditingController nameCtrl = TextEditingController();
-  final TextEditingController emailCtrl = TextEditingController();
-  final TextEditingController passwordCtrl = TextEditingController();
-
-  bool obscurePassword = true;
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
-    nameCtrl.dispose();
-    emailCtrl.dispose();
-    passwordCtrl.dispose();
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -40,32 +36,13 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Future<void> _register() async {
-    final auth = context.read<AuthController>();
-    if (auth.isLoading) return; // blocks double-submit
     FocusScope.of(context).unfocus();
-
-    final name = nameCtrl.text.trim();
-    final email = emailCtrl.text.trim();
-    final password = passwordCtrl.text;
-
-    String? problem;
-    if (name.isEmpty || email.isEmpty || password.isEmpty) {
-      problem = 'Please fill in all fields.';
-    } else if (!_emailRegex.hasMatch(email)) {
-      problem = 'Please enter a valid email address.';
-    } else if (password.length < 6) {
-      problem = 'Password must be at least 6 characters.';
-    }
-
-    if (problem != null) {
-      _showSnack(problem);
-      return;
-    }
+    final auth = context.read<AuthController>();
 
     final success = await auth.register(
-      name: name,
-      email: email,
-      password: password,
+      name: _nameController.text,
+      email: _emailController.text,
+      password: _passwordController.text,
     );
 
     if (!mounted) return;
@@ -77,15 +54,14 @@ class _RegisterPageState extends State<RegisterPage> {
       );
       Navigator.pop(context);
     } else {
-      _showSnack(
-        auth.errorMessage ?? 'Registration failed. Please try again.',
-      );
+      _showSnack(auth.errorMessage ?? 'Registration failed. Please try again.');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
+    final pc = context.pc;
 
     return Scaffold(
       appBar: AppBar(
@@ -105,19 +81,19 @@ class _RegisterPageState extends State<RegisterPage> {
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
-                    color: navy,
+                    color: pc.ink,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Register to get started',
-                  style: TextStyle(fontSize: 16, color: mutedColor),
+                  style: TextStyle(fontSize: 16, color: pc.muted),
                 ),
                 const SizedBox(height: 30),
 
                 // NAME
                 TextField(
-                  controller: nameCtrl,
+                  controller: _nameController,
                   textInputAction: TextInputAction.next,
                   textCapitalization: TextCapitalization.words,
                   decoration: const InputDecoration(
@@ -129,7 +105,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
                 // EMAIL
                 TextField(
-                  controller: emailCtrl,
+                  controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
@@ -141,8 +117,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
                 // PASSWORD
                 TextField(
-                  controller: passwordCtrl,
-                  obscureText: obscurePassword,
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _register(),
                   decoration: InputDecoration(
@@ -150,10 +126,10 @@ class _RegisterPageState extends State<RegisterPage> {
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       onPressed: () {
-                        setState(() => obscurePassword = !obscurePassword);
+                        setState(() => _obscurePassword = !_obscurePassword);
                       },
                       icon: Icon(
-                        obscurePassword
+                        _obscurePassword
                             ? Icons.visibility_outlined
                             : Icons.visibility_off_outlined,
                       ),
@@ -173,7 +149,7 @@ class _RegisterPageState extends State<RegisterPage> {
                             width: 24,
                             height: 24,
                             child: CircularProgressIndicator(
-                              color: cream,
+                              color: pc.background,
                               strokeWidth: 2,
                             ),
                           )
@@ -194,7 +170,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   children: [
                     Text(
                       'Already have an account? ',
-                      style: TextStyle(color: mutedColor),
+                      style: TextStyle(color: pc.muted),
                     ),
                     TextButton(
                       onPressed:
@@ -202,7 +178,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       child: Text(
                         'Login',
                         style: TextStyle(
-                          color: navy,
+                          color: pc.ink,
                           fontWeight: FontWeight.bold,
                         ),
                       ),

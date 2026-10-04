@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart';
+import 'package:markdown/markdown.dart' as md;
+import 'package:markdown_quill/markdown_quill.dart';
 import 'package:provider/provider.dart';
 
 import '/controllers/auth_controller.dart';
@@ -8,26 +11,9 @@ import '/models/material_model.dart';
 import '../material/document_viewer.dart';
 import '../material/material_details_sheet.dart';
 import 'checkout_page.dart';
-
+import 'creator_info.dart';
 import 'package:polaris_mobile_app/services/theme_service.dart';
-/// Material detail page — shown when a student taps a card from Discover,
-/// My Materials, or My Purchases.
-/// Lives at lib/views/student/discover/material_detail_page.dart, alongside
-/// discover_page.dart and checkout_page.dart. document_viewer.dart and
-/// materials_details_sheet.dart live one folder over, in material/.
-///
-/// ACCESS GATING mirrors MaterialService.canAccessContent (public_free is
-/// always visible, the owner always sees their own, public_paid needs a
-/// completed purchase). That method lives on the Service and isn't exposed
-/// through MaterialController, so the same 3-line check is reproduced here
-/// as `_canAccessContent`.
-///
-/// TRANSACTION-BACKED STATE: `hasTransacted` (from
-/// TransactionController.hasPurchased) is checked for any non-owner viewer,
-/// not just paid ones — it drives two different things depending on
-/// visibility: for public_paid, it's the purchase gate; for public_free,
-/// it's whether to show "Save to My Materials" vs "Saved". Same underlying
-/// stream, two different UI meanings.
+
 class MaterialDetailPage extends StatefulWidget {
   const MaterialDetailPage({super.key, required this.materialId});
 
@@ -45,7 +31,6 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
   Color get goodColor => context.pc.success;
   Color get badColor => context.pc.danger;
 
-
   bool _viewCounted = false;
 
   @override
@@ -53,7 +38,6 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
     final materialController = context.watch<MaterialController>();
     final authController = context.watch<AuthController>();
     final transactionController = context.watch<TransactionController>();
-
     final currentUserId = authController.currentUserProfile?.userId;
 
     return Scaffold(
@@ -61,24 +45,33 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
         stream: materialController.material(widget.materialId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator(color: purple));
+            return Center(
+              child: CircularProgressIndicator(color: purple),
+            );
           }
 
           final material = snapshot.data;
+
           if (material == null || !material.isActive) {
             return _buildNotFound();
           }
 
           if (!_viewCounted) {
             _viewCounted = true;
+
             WidgetsBinding.instance.addPostFrameCallback((_) {
               materialController.registerView(widget.materialId);
             });
           }
 
-          final isOwner = currentUserId != null && material.ownerId == currentUserId;
+          final isOwner =
+              currentUserId != null &&
+              material.ownerId == currentUserId;
+
           final needsTransactionCheck =
-              !isOwner && currentUserId != null && (material.isPublicPaid || material.isPublicFree);
+              !isOwner &&
+              currentUserId != null &&
+              (material.isPublicPaid || material.isPublicFree);
 
           if (!needsTransactionCheck) {
             return _buildScaffoldBody(
@@ -98,6 +91,7 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
             ),
             builder: (context, txnSnap) {
               final hasTransacted = txnSnap.data ?? false;
+
               return _buildScaffoldBody(
                 material: material,
                 isOwner: isOwner,
@@ -113,16 +107,7 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
     );
   }
 
-  //  ACCESS LOGIC (mirrors MaterialService.canAccessContent) ----------
-
-  bool _canAccessContent(MaterialModel m, String? currentUserId, bool hasTransacted) {
-    if (m.visibility == 'public_free') return true;
-    if (currentUserId != null && m.ownerId == currentUserId) return true;
-    if (m.visibility == 'public_paid' && hasTransacted) return true;
-    return false;
-  }
-
-  //  BODY ----------
+  // BODY ----------
 
   Widget _buildScaffoldBody({
     required MaterialModel material,
@@ -132,7 +117,12 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
     required MaterialController materialController,
     required TransactionController transactionController,
   }) {
-    final canAccess = _canAccessContent(material, currentUserId, hasTransacted);
+    final canAccess = materialController.canAccess(
+      material,
+      currentUserId,
+      hasTransacted,
+    );
+
     final coverUrl = material.coverImage?['url'] as String?;
 
     return CustomScrollView(
@@ -141,17 +131,30 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
           expandedHeight: coverUrl != null ? 200 : 0,
           pinned: true,
           flexibleSpace: coverUrl != null
-              ? FlexibleSpaceBar(background: Image.network(coverUrl, fit: BoxFit.cover))
+              ? FlexibleSpaceBar(
+                  background: Image.network(
+                    coverUrl,
+                    fit: BoxFit.cover,
+                  ),
+                )
               : null,
           actions: isOwner
               ? [
                   IconButton(
-                    icon: Icon(Icons.edit_outlined, color: navy),
-                    onPressed: () => _editMaterial(material, materialController),
+                    icon: Icon(
+                      Icons.edit_outlined,
+                      color: navy,
+                    ),
+                    onPressed: () =>
+                        _editMaterial(material, materialController),
                   ),
                   IconButton(
-                    icon: Icon(Icons.delete_outline, color: navy),
-                    onPressed: () => _confirmRemove(material, materialController),
+                    icon: Icon(
+                      Icons.delete_outline,
+                      color: navy,
+                    ),
+                    onPressed: () =>
+                        _confirmRemove(material, materialController),
                   ),
                 ]
               : null,
@@ -164,15 +167,32 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
               children: [
                 Text(
                   material.title,
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: navy),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: navy,
+                  ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 10),
+                CreatorInfo(
+                  ownerId: material.ownerId,
+                  avatarRadius: 16,
+                  nameSize: 14,
+                  programSize: 12,
+                ),
+                const SizedBox(height: 10),
                 _buildVisibilityAndStats(material),
                 const SizedBox(height: 14),
                 _buildMetaSection(material),
-                if (material.description != null && material.description!.isNotEmpty) ...[
+                if (material.description != null &&
+                    material.description!.isNotEmpty) ...[
                   const SizedBox(height: 16),
-                  Text(material.description!, style: TextStyle(color: navy.withOpacity(0.75))),
+                  Text(
+                    material.description!,
+                    style: TextStyle(
+                      color: navy.withOpacity(0.75),
+                    ),
+                  ),
                 ],
                 const SizedBox(height: 20),
                 const Divider(),
@@ -181,7 +201,12 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
                   _buildPurchaseGate(material)
                 else ...[
                   if (!isOwner && material.isPublicFree)
-                    _buildSaveSection(material, currentUserId, hasTransacted, transactionController),
+                    _buildSaveSection(
+                      material,
+                      currentUserId,
+                      hasTransacted,
+                      transactionController,
+                    ),
                   _buildContentSection(material),
                   if (material.attachments.isNotEmpty) ...[
                     const SizedBox(height: 24),
@@ -204,11 +229,23 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.folder_off_outlined, size: 48, color: navy.withOpacity(0.3)),
+              Icon(
+                Icons.folder_off_outlined,
+                size: 48,
+                color: navy.withOpacity(0.3),
+              ),
               const SizedBox(height: 12),
-              Text('This material is no longer available.', style: TextStyle(color: navy.withOpacity(0.6))),
+              Text(
+                'This material is no longer available.',
+                style: TextStyle(
+                  color: navy.withOpacity(0.6),
+                ),
+              ),
               const SizedBox(height: 16),
-              TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Go back')),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Go back'),
+              ),
             ],
           ),
         ),
@@ -234,19 +271,52 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(color: chipColor.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
-          child: Text(label, style: TextStyle(color: chipColor, fontSize: 12, fontWeight: FontWeight.w700)),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 4,
+          ),
+          decoration: BoxDecoration(
+            color: chipColor.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: chipColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ),
         const SizedBox(width: 12),
-        Icon(Icons.remove_red_eye_outlined, size: 14, color: navy.withOpacity(0.4)),
+        Icon(
+          Icons.remove_red_eye_outlined,
+          size: 14,
+          color: navy.withOpacity(0.4),
+        ),
         const SizedBox(width: 4),
-        Text('${material.viewCount}', style: TextStyle(color: navy.withOpacity(0.5), fontSize: 12)),
+        Text(
+          '${material.viewCount}',
+          style: TextStyle(
+            color: navy.withOpacity(0.5),
+            fontSize: 12,
+          ),
+        ),
         if (!material.isPrivate) ...[
           const SizedBox(width: 12),
-          Icon(Icons.bookmark_added_outlined, size: 14, color: navy.withOpacity(0.4)),
+          Icon(
+            Icons.bookmark_added_outlined,
+            size: 14,
+            color: navy.withOpacity(0.4),
+          ),
           const SizedBox(width: 4),
-          Text('${material.purchaseCount}', style: TextStyle(color: navy.withOpacity(0.5), fontSize: 12)),
+          Text(
+            '${material.purchaseCount}',
+            style: TextStyle(
+              color: navy.withOpacity(0.5),
+              fontSize: 12,
+            ),
+          ),
         ],
       ],
     );
@@ -258,19 +328,31 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
       '${material.college} · ${material.program}',
       material.course,
       '${material.semester} · ${material.schoolYear}',
-      if (material.professor != null && material.professor!.isNotEmpty) 'Prof. ${material.professor}',
+      if (material.professor != null && material.professor!.isNotEmpty)
+        'Prof. ${material.professor}',
     ];
 
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: rows
-            .map((r) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Text(r, style: TextStyle(color: navy.withOpacity(0.7), fontSize: 13)),
-                ))
+            .map(
+              (r) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Text(
+                  r,
+                  style: TextStyle(
+                    color: navy.withOpacity(0.7),
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            )
             .toList(),
       ),
     );
@@ -279,14 +361,26 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
   // CONTENT ----------
 
   Widget _buildContentSection(MaterialModel material) {
-    if (material.content.trim().isEmpty) return const SizedBox.shrink();
+    if (material.content.trim().isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Notes', style: TextStyle(fontWeight: FontWeight.bold, color: navy, fontSize: 15)),
+        Text(
+          'Notes',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: navy,
+            fontSize: 15,
+          ),
+        ),
         const SizedBox(height: 8),
-        SelectableText(material.content, style: TextStyle(color: navy.withOpacity(0.85), height: 1.5)),
+        _MarkdownContent(
+          key: ValueKey(material.content),
+          content: material.content,
+        ),
       ],
     );
   }
@@ -295,9 +389,20 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Attachments', style: TextStyle(fontWeight: FontWeight.bold, color: navy, fontSize: 15)),
+        Text(
+          'Attachments',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: navy,
+            fontSize: 15,
+          ),
+        ),
         const SizedBox(height: 8),
-        ...material.attachments.map((a) => _AttachmentTile(attachment: a)),
+        ...material.attachments.map(
+          (a) => _AttachmentTile(
+            attachment: a,
+          ),
+        ),
       ],
     );
   }
@@ -315,14 +420,32 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
       child: SizedBox(
         width: double.infinity,
         child: OutlinedButton.icon(
-          onPressed: currentUserId == null || alreadySaved || transactionController.isPurchasing
+          onPressed: currentUserId == null ||
+                  alreadySaved ||
+                  transactionController.isPurchasing
               ? null
-              : () => _handleSaveFree(material, currentUserId, transactionController),
-          icon: Icon(alreadySaved ? Icons.check_circle : Icons.bookmark_add_outlined),
-          label: Text(alreadySaved ? 'Saved to My Materials' : 'Save to My Materials'),
+              : () => _handleSaveFree(
+                    material,
+                    currentUserId,
+                    transactionController,
+                  ),
+          icon: Icon(
+            alreadySaved
+                ? Icons.check_circle
+                : Icons.bookmark_add_outlined,
+          ),
+          label: Text(
+            alreadySaved
+                ? 'Saved to My Materials'
+                : 'Save to My Materials',
+          ),
           style: OutlinedButton.styleFrom(
             foregroundColor: alreadySaved ? goodColor : navy,
-            side: BorderSide(color: alreadySaved ? goodColor : navy.withOpacity(0.4)),
+            side: BorderSide(
+              color: alreadySaved
+                  ? goodColor
+                  : navy.withOpacity(0.4),
+            ),
             padding: const EdgeInsets.symmetric(vertical: 12),
           ),
         ),
@@ -341,18 +464,20 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
     );
 
     if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           success
               ? 'Saved! Find it under My Materials → Purchased.'
-              : (transactionController.errorMessage ?? 'Could not save this material.'),
+              : (transactionController.errorMessage ??
+                  'Could not save this material.'),
         ),
       ),
     );
   }
 
-  //PURCHASE GATE (paid materials) ----------
+  // PURCHASE GATE (paid materials) ----------
 
   Widget _buildPurchaseGate(MaterialModel material) {
     return Container(
@@ -360,19 +485,27 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: gold.withOpacity(0.4)),
+        border: Border.all(
+          color: gold.withOpacity(0.4),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.lock_outline, color: navy.withOpacity(0.6)),
+              Icon(
+                Icons.lock_outline,
+                color: navy.withOpacity(0.6),
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'Purchase this material to unlock the full notes and attachments.',
-                  style: TextStyle(color: navy, fontSize: 13),
+                  style: TextStyle(
+                    color: navy,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ],
@@ -380,7 +513,11 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
           const SizedBox(height: 14),
           Text(
             '₱${material.price?.toStringAsFixed(2) ?? "0.00"}',
-            style: TextStyle(color: navy, fontSize: 22, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: navy,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 14),
           SizedBox(
@@ -389,7 +526,11 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
             child: ElevatedButton(
               onPressed: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => CheckoutPage(material: material)),
+                MaterialPageRoute(
+                  builder: (_) => CheckoutPage(
+                    material: material,
+                  ),
+                ),
               ),
               child: const Text('Proceed to Checkout'),
             ),
@@ -401,56 +542,61 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
 
   // OWNER ACTIONS ----------
 
-  Future<void> _editMaterial(MaterialModel material, MaterialController materialController) async {
-    final result = await showModalBottomSheet<Map<String, dynamic>>(
+  Future<void> _editMaterial(
+    MaterialModel material,
+    MaterialController materialController,
+  ) async {
+    final result = await showModalBottomSheet<Map<String, String>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => MaterialDetailsSheet(existingMaterial: material),
+      builder: (_) => MaterialDetailsSheet(
+        existingMaterial: material,
+      ),
     );
 
     if (result == null || !mounted) return;
 
-    final fields = _sheetResultToUpdateFields(result);
-    final success = await materialController.updateMaterial(material.materialId, fields);
+    final success = await materialController.updateDetails(
+      material,
+      result,
+    );
 
     if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(success ? 'Details updated.' : (materialController.errorMessage ?? 'Update failed.')),
+        content: Text(
+          success
+              ? 'Details updated.'
+              : (materialController.errorMessage ?? 'Update failed.'),
+        ),
       ),
     );
   }
 
-  Map<String, dynamic> _sheetResultToUpdateFields(Map<String, dynamic> result) {
-    final visibility = result['visibility'] as String;
-    final priceText = (result['price'] as String? ?? '').trim();
-    final professor = (result['professor'] as String? ?? '').trim();
-
-    return {
-      'university': result['university'],
-      'college': result['college'],
-      'program': result['program'],
-      'course': result['course'],
-      'semester': result['semester'],
-      'school_year': result['schoolYear'],
-      'professor': professor.isEmpty ? null : professor,
-      'visibility': visibility,
-      'price': visibility == 'public_paid' && priceText.isNotEmpty ? double.tryParse(priceText) : null,
-    };
-  }
-
-  Future<void> _confirmRemove(MaterialModel material, MaterialController materialController) async {
+  Future<void> _confirmRemove(
+    MaterialModel material,
+    MaterialController materialController,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Remove this material?'),
-        content: const Text('It will no longer appear anywhere, but past transactions still reference it.'),
+        content: const Text(
+          'It will no longer appear anywhere, but past transactions still reference it.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Remove', style: TextStyle(color: badColor)),
+            child: Text(
+              'Remove',
+              style: TextStyle(color: badColor),
+            ),
           ),
         ],
       ),
@@ -458,47 +604,136 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
 
     if (confirmed != true || !mounted) return;
 
-    final success = await materialController.removeMaterial(material.materialId);
+    final success = await materialController.removeMaterial(
+      material.materialId,
+    );
+
     if (!mounted) return;
 
     if (success) {
       Navigator.of(context).pop();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(materialController.errorMessage ?? 'Could not remove this material.')),
+        SnackBar(
+          content: Text(
+            materialController.errorMessage ??
+                'Could not remove this material.',
+          ),
+        ),
       );
     }
   }
 }
 
-class _AttachmentTile extends StatelessWidget {
-  const _AttachmentTile({required this.attachment});
+/// Shows Markdown (bold, headings, lists) as formatted, read-only text.
+class _MarkdownContent extends StatefulWidget {
+  const _MarkdownContent({
+    super.key,
+    required this.content,
+  });
 
-  final Map<String, dynamic> attachment;
+  final String content;
 
+  @override
+  State<_MarkdownContent> createState() => _MarkdownContentState();
+}
+
+class _MarkdownContentState extends State<_MarkdownContent> {
+  late final QuillController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final delta = MarkdownToDelta(
+      markdownDocument: md.Document(
+        encodeHtml: false,
+        extensionSet: md.ExtensionSet.gitHubFlavored,
+      ),
+    ).convert(widget.content);
+
+    _controller = QuillController(
+      document: Document.fromDelta(delta),
+      selection: const TextSelection.collapsed(offset: 0),
+      readOnly: true,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final _pc = context.pc;
-    final navy = _pc.ink;
-    final purple = _pc.accent;
-    final cardColor = _pc.card;
+    return QuillEditor.basic(
+      controller: _controller,
+      config: const QuillEditorConfig(
+        scrollable: false,
+        showCursor: false,
+      ),
+    );
+  }
+}
 
-    final format = (attachment['format'] as String? ?? '').toLowerCase();
-    final filename = attachment['original_filename'] as String? ?? 'File';
+class _AttachmentTile extends StatelessWidget {
+  const _AttachmentTile({
+    required this.attachment,
+  });
+
+  final Map<String, dynamic> attachment;
+
+  @override
+  Widget build(BuildContext context) {
+    final pc = context.pc;
+
+    final navy = pc.ink;
+    final purple = pc.accent;
+    final cardColor = pc.card;
+
+    final format =
+        (attachment['format'] as String? ?? '').toLowerCase();
+
+    final filename =
+        attachment['original_filename'] as String? ?? 'File';
+
     final url = attachment['url'] as String?;
-    final sizeBytes = (attachment['size_bytes'] as num?)?.toInt() ?? 0;
+
+    final sizeBytes =
+        (attachment['size_bytes'] as num?)?.toInt() ?? 0;
 
     return Card(
       color: cardColor,
       margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: ListTile(
-        leading: Icon(_iconForFormat(format), color: purple),
-        title: Text(filename, maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Text('${format.toUpperCase()} · ${_formatBytes(sizeBytes)}'),
-        trailing: Icon(Icons.open_in_new, size: 18, color: navy),
-        onTap: url == null ? null : () => DocumentViewer.open(context, fileUrl: url, format: format),
+        leading: Icon(
+          _iconForFormat(format),
+          color: purple,
+        ),
+        title: Text(
+          filename,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Text(
+          '${format.toUpperCase()} · ${_formatBytes(sizeBytes)}',
+        ),
+        trailing: Icon(
+          Icons.open_in_new,
+          size: 18,
+          color: navy,
+        ),
+        onTap: url == null
+            ? null
+            : () => DocumentViewer.open(
+                  context,
+                  fileUrl: url,
+                  format: format,
+                ),
       ),
     );
   }
@@ -507,21 +742,26 @@ class _AttachmentTile extends StatelessWidget {
     switch (format) {
       case 'pdf':
         return Icons.picture_as_pdf_outlined;
+
       case 'doc':
       case 'docx':
         return Icons.description_outlined;
+
       case 'ppt':
       case 'pptx':
         return Icons.slideshow_outlined;
+
       case 'xls':
       case 'xlsx':
         return Icons.table_chart_outlined;
+
       case 'jpg':
       case 'jpeg':
       case 'png':
       case 'gif':
       case 'webp':
         return Icons.image_outlined;
+
       default:
         return Icons.insert_drive_file_outlined;
     }
@@ -529,8 +769,15 @@ class _AttachmentTile extends StatelessWidget {
 
   String _formatBytes(int bytes) {
     if (bytes <= 0) return '';
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
+
+    if (bytes < 1024) {
+      return '$bytes B';
+    }
+
+    if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(0)} KB';
+    }
+
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 }

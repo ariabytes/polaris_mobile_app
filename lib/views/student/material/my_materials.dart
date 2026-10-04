@@ -1,12 +1,9 @@
 import 'dart:async';
 import 'dart:io';
-
-import 'package:cloudinary_public/cloudinary_public.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-
 import '/controllers/auth_controller.dart';
 import '/controllers/material_controller.dart';
 import '/controllers/transaction_controller.dart';
@@ -60,6 +57,9 @@ class _MyMaterialsViewState extends State<MyMaterialsView> {
   _AdvancedFilter _advanced = const _AdvancedFilter();
   bool _uploading = false;
 
+  final TextEditingController _searchController = TextEditingController();
+  String _query = '';
+
   String? _uid;
   StreamSubscription<List<MaterialModel>>? _ownedSub;
   StreamSubscription<List<TransactionModel>>? _txSub;
@@ -72,14 +72,6 @@ class _MyMaterialsViewState extends State<MyMaterialsView> {
   bool _txLoaded = false;
   Object? _ownedError;
   Object? _txError;
-
-  static const Set<String> _imageExtensions = {
-    'jpg',
-    'jpeg',
-    'png',
-    'gif',
-    'webp',
-  };
 
   @override
   void didChangeDependencies() {
@@ -94,6 +86,7 @@ class _MyMaterialsViewState extends State<MyMaterialsView> {
   @override
   void dispose() {
     _cancelAll();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -130,7 +123,6 @@ class _MyMaterialsViewState extends State<MyMaterialsView> {
         });
       },
       onError: (Object e) {
-        debugPrint('myMaterials stream error: $e');
         if (!mounted) return;
         setState(() {
           _ownedError = e;
@@ -149,7 +141,6 @@ class _MyMaterialsViewState extends State<MyMaterialsView> {
         });
       },
       onError: (Object e) {
-        debugPrint('myPurchases stream error: $e');
         if (!mounted) return;
         setState(() {
           _txError = e;
@@ -197,6 +188,16 @@ class _MyMaterialsViewState extends State<MyMaterialsView> {
     return true;
   }
 
+  /// Matches the search text against the material title and course/subject.
+  bool _matchesSearch(MaterialModel m) {
+    if (_query.isEmpty) return true;
+    final haystack = '${m.title} ${m.course}'.toLowerCase();
+    return _query
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .every(haystack.contains);
+  }
+
   List<_Entry> _purchasedEntries() {
     final seen = <String>{};
     final entries = <_Entry>[];
@@ -225,7 +226,9 @@ class _MyMaterialsViewState extends State<MyMaterialsView> {
       entries.addAll(_purchasedEntries());
     }
 
-    return entries.where((e) => _matchesAdvanced(e.material)).toList()
+    return entries
+        .where((e) => _matchesAdvanced(e.material) && _matchesSearch(e.material))
+        .toList()
       ..sort((a, b) => b.date.compareTo(a.date));
   }
 
@@ -273,7 +276,6 @@ class _MyMaterialsViewState extends State<MyMaterialsView> {
     final pickedFile = result.files.single;
     final file = File(pickedFile.path!);
     final filename = pickedFile.name;
-    final extension = (pickedFile.extension ?? '').toLowerCase();
 
     if (!mounted) return;
 
@@ -310,66 +312,22 @@ class _MyMaterialsViewState extends State<MyMaterialsView> {
     setState(() => _uploading = true);
 
     final materialController = context.read<MaterialController>();
-    final visibility = details['visibility'] ?? 'private';
-
-    final newMaterialId = await materialController.createMaterial(
+    final newId = await materialController.createFileMaterial(
       ownerId: uid,
       title: quickInfo['title']!,
-      content:
-          '_This material is an uploaded file — see the attachment below._',
-      university: details['university']!,
-      college: details['college']!,
-      program: details['program']!,
-      course: details['course']!,
-      semester: details['semester']!,
-      schoolYear: details['schoolYear']!,
-      professor: (details['professor'] ?? '').isEmpty
-          ? null
-          : details['professor'],
-      visibility: visibility,
-      price: visibility == 'public_paid'
-          ? double.tryParse(details['price'] ?? '')
-          : null,
-    );
-
-    if (newMaterialId == null) {
-      if (!mounted) return;
-
-      setState(() => _uploading = false);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            materialController.errorMessage ?? 'Could not create material.',
-          ),
-        ),
-      );
-
-      return;
-    }
-
-    final isImage = _imageExtensions.contains(extension);
-
-    final success = await materialController.uploadAttachment(
-      materialId: newMaterialId,
       file: file,
-      originalFilename: filename,
-      visibility: visibility,
-      resourceType: isImage
-          ? CloudinaryResourceType.Image
-          : CloudinaryResourceType.Raw,
+      filename: filename,
+      details: details,
     );
 
     if (!mounted) return;
-
     setState(() => _uploading = false);
 
-    if (!success) {
+    if (newId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            materialController.errorMessage ??
-                'Material saved, but file upload failed.',
+            materialController.errorMessage ?? 'Could not upload your file.',
           ),
         ),
       );
@@ -415,8 +373,8 @@ class _MyMaterialsViewState extends State<MyMaterialsView> {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            _advanced.isActive
-                ? 'No materials match your filters.'
+            (_advanced.isActive || _query.isNotEmpty)
+                ? 'No materials match your search or filters.'
                 : 'No materials here yet.',
             style: TextStyle(color: mutedColor, fontSize: 15),
           ),
@@ -456,6 +414,28 @@ class _MyMaterialsViewState extends State<MyMaterialsView> {
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: TextField(
+              controller: _searchController,
+              textInputAction: TextInputAction.search,
+              onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
+              decoration: InputDecoration(
+                hintText: 'Search by title or course / subject',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _query.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Clear',
+                        icon: const Icon(Icons.close),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _query = '');
+                        },
+                      ),
+              ),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: SingleChildScrollView(
@@ -823,44 +803,18 @@ class _MaterialCard extends StatelessWidget {
     if (result == null || !context.mounted) return;
 
     final materialController = context.read<MaterialController>();
-
-    final visibility = result['visibility'] ?? material.visibility;
-
-    final success = await materialController.updateMaterial(
-      material.materialId,
-      {
-        'university': result['university'],
-        'college': result['college'],
-        'program': result['program'],
-        'course': result['course'],
-        'semester': result['semester'],
-        'school_year': result['schoolYear'],
-        'professor': (result['professor'] ?? '').trim().isEmpty
-            ? null
-            : result['professor'],
-        'visibility': visibility,
-        'price': visibility == 'public_paid'
-            ? double.tryParse(result['price'] ?? '')
-            : null,
-      },
-    );
+    final success = await materialController.updateDetails(material, result);
 
     if (!context.mounted) return;
 
-    if (!success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            materialController.errorMessage ??
-                'Could not update material details.',
-          ),
-        ),
-      );
-      return;
-    }
-
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Material details updated.')),
+      SnackBar(
+        content: Text(
+          success
+              ? 'Material details updated.'
+              : materialController.errorMessage ?? 'Could not update material details.',
+        ),
+      ),
     );
   }
 

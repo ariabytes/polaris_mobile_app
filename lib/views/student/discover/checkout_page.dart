@@ -7,22 +7,7 @@ import '/models/material_model.dart';
 import '../material/document_viewer.dart';
 
 import 'package:polaris_mobile_app/services/theme_service.dart';
-/// Mock checkout flow for a public_paid material.
-/// Lives at lib/views/student/discover/checkout_page.dart, next to
-/// material_detail_page.dart.
-///
-/// This is a SIMULATED payment flow, matching the rest of Polaris's
-/// marketplace scope — no real payment gateway, no card numbers or mobile
-/// numbers are ever sent anywhere or stored. Those "details" fields exist
-/// purely so the flow feels like a real checkout; TransactionModel has no
-/// fields for them, so they're display-only. The only thing that actually
-/// gets written to Firestore is what TransactionService.purchaseMaterial
-/// already writes: buyer/seller/material ids, price, platform_fee, and
-/// seller_earnings, computed automatically inside an atomic transaction.
-///
-/// Flow: payment method → mock details → Buy Now → receipt (with the
-/// material's attachments immediately openable via DocumentViewer, since
-/// the purchase has already gone through by the time this screen shows).
+
 class CheckoutPage extends StatefulWidget {
   const CheckoutPage({super.key, required this.material});
 
@@ -304,5 +289,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
             : () => DocumentViewer.open(context, fileUrl: url, format: format),
       ),
     );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<TransactionController>().clearError();
+    });
   }
 }

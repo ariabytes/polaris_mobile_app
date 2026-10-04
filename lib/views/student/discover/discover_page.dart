@@ -5,6 +5,7 @@ import '/controllers/auth_controller.dart';
 import '/controllers/material_controller.dart';
 import '/models/material_model.dart';
 import '/models/user_model.dart';
+import 'creator_info.dart';
 import 'material_detail_page.dart';
 
 import 'package:polaris_mobile_app/services/theme_service.dart';
@@ -47,7 +48,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
 
   // Memoized stream — only rebuilt when the scope it was built for changes.
   Stream<List<MaterialModel>>? _stream;
-  bool? _streamScope;
+  String? _streamKey;
 
   @override
   void dispose() {
@@ -61,12 +62,11 @@ class _DiscoverPageState extends State<DiscoverPage> {
     bool hasProfileScope,
   ) {
     final wantsScope = _personalizedOn && hasProfileScope;
+    final key = wantsScope ? '${profile!.university}|${profile.program}' : 'all';
 
-    if (_stream != null && _streamScope == wantsScope) {
-      return _stream!;
-    }
+    if (_stream != null && _streamKey == key) return _stream!;
 
-    _streamScope = wantsScope;
+    _streamKey = key;
     _stream = wantsScope
         ? materialController.publicMaterials(university: profile!.university, program: profile.program)
         : materialController.publicMaterials();
@@ -76,7 +76,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
   @override
   Widget build(BuildContext context) {
     final authController = context.watch<AuthController>();
-    final materialController = context.watch<MaterialController>();
+    final materialController = context.read<MaterialController>();
     final profile = authController.currentUserProfile;
 
     final hasProfileScope = (profile?.university?.isNotEmpty ?? false) ||
@@ -279,7 +279,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
         crossAxisCount: 2,
         mainAxisSpacing: 14,
         crossAxisSpacing: 14,
-        childAspectRatio: 0.72,
+        childAspectRatio: 0.67,
       ),
       itemCount: materials.length,
       itemBuilder: (context, index) => _MaterialCard(material: materials[index]),
@@ -359,7 +359,9 @@ class _MaterialCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: navy.withOpacity(0.55), fontSize: 11.5),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
+                  CreatorInfo(ownerId: material.ownerId),
+                  const SizedBox(height: 8),
                   if (isPaid)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

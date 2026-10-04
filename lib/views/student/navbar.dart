@@ -51,8 +51,6 @@ class _StudentNavBarState extends State<StudentNavBar> {
   }
 
   void _onDestinationSelected(int navBarIndex) {
-    print('NAVBAR CLICKED: $navBarIndex');
-
     if (navBarIndex == _createTabIndex) {
       _openCreateMaterial();
       return;
@@ -61,8 +59,6 @@ class _StudentNavBarState extends State<StudentNavBar> {
     setState(() {
       _selectedIndex = _screenIndexFor(navBarIndex);
     });
-
-    print('SCREEN INDEX: $_selectedIndex');
   }
 
   void _openCreateMaterial() {

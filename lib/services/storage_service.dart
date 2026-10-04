@@ -35,18 +35,6 @@ class StorageService {
         : _publicUploader;
 
     try {
-      print('==========================================');
-      print('CLOUDINARY UPLOAD');
-      print('Cloud name: $_cloudName');
-      print(
-        'Preset: ${useRestrictedPreset ? "Polaris Material Restricted" : "Polaris Material Public"}',
-      );
-      print('File: ${file.path}');
-      print('Filename: $originalFilename');
-      print('Folder: $folder');
-      print('Resource type: $resourceType');
-      print('==========================================');
-
       final cloudinaryFile = CloudinaryFile.fromFile(
         file.path,
         resourceType: resourceType,
@@ -56,13 +44,6 @@ class StorageService {
       final response = await uploader.uploadFile(cloudinaryFile);
 
       final rawData = response.data;
-
-      print('==========================================');
-      print('CLOUDINARY SUCCESS');
-      print('Public ID: ${response.publicId}');
-      print('Secure URL: ${response.secureUrl}');
-      print('Response data: $rawData');
-      print('==========================================');
 
       final sizeValue = rawData['bytes'];
 
@@ -109,20 +90,7 @@ class StorageService {
         'size_bytes': sizeBytes,
         'url': url,
       };
-    } catch (e, stackTrace) {
-      print('==========================================');
-      print('CLOUDINARY UPLOAD ERROR');
-      print('ERROR TYPE: ${e.runtimeType}');
-      print('ERROR: $e');
-
-      if (e is Exception) {
-        print('EXCEPTION: $e');
-      }
-
-      print('STACK TRACE:');
-      print(stackTrace);
-      print('==========================================');
-
+    } catch (e) {
       throw Exception(
         'Cloudinary upload failed: $e',
       );

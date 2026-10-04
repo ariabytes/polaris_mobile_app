@@ -6,6 +6,9 @@ class MaterialService {
       FirebaseFirestore.instance.collection('materials');
 
   // ---------- CREATE ----------
+
+  /// Creates a material. The cover image and attachments are uploaded BEFORE
+  /// this is called, so a failed upload never leaves an empty material behind.
   Future<String> createMaterial({
     required String ownerId,
     required String title,
@@ -20,6 +23,8 @@ class MaterialService {
     String? professor,
     required String visibility,
     double? price,
+    Map<String, dynamic>? coverImage,
+    List<Map<String, dynamic>> attachments = const [],
   }) async {
     final docRef = _materials.doc();
     final material = MaterialModel(
@@ -38,6 +43,10 @@ class MaterialService {
       visibility: visibility,
       status: 'active',
       price: price,
+      coverImage: coverImage,
+      attachments: [
+        for (final a in attachments) {...a, 'uploaded_at': Timestamp.now()},
+      ],
     );
     await docRef.set(material.toMap());
     return docRef.id;
@@ -55,13 +64,8 @@ class MaterialService {
     await updateMaterial(materialId, {'cover_image': coverImage});
   }
 
-  Future<void> addAttachment(String materialId, Map<String, dynamic> attachment) async {
-    await _materials.doc(materialId).update({
-      'attachments': FieldValue.arrayUnion([
-        {...attachment, 'uploaded_at': Timestamp.now()},
-      ]),
-      'updated_at': FieldValue.serverTimestamp(),
-    });
+  Future<void> incrementViewCount(String materialId) async {
+    await _materials.doc(materialId).update({'view_count': FieldValue.increment(1)});
   }
 
   // ---------- SOFT DELETE ----------
@@ -72,16 +76,12 @@ class MaterialService {
     });
   }
 
-  Future<void> incrementViewCount(String materialId) async {
-    await _materials.doc(materialId).update({'view_count': FieldValue.increment(1)});
-  }
-
-  //  ADMIN DELETE ----------
+  // ---------- ADMIN DELETE ----------
   Future<void> hardDeleteMaterial(String materialId) async {
     await _materials.doc(materialId).delete();
   }
 
-  //  READS ----------
+  // ---------- READS ----------
   Stream<List<MaterialModel>> streamMyMaterials(String ownerId) {
     return _materials
         .where('owner_id', isEqualTo: ownerId)
@@ -130,6 +130,8 @@ class MaterialService {
     });
   }
 
+  /// Free materials are open to everyone, the owner always has access, and
+  /// paid materials need a completed purchase.
   bool canAccessContent(MaterialModel material, String? currentUserId, bool hasPurchased) {
     if (material.visibility == 'public_free') return true;
     if (material.ownerId == currentUserId) return true;

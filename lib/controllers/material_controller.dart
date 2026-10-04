@@ -5,7 +5,38 @@ import '../models/material_model.dart';
 import '../services/material_service.dart';
 import '../services/storage_service.dart';
 
+/// The details collected by MaterialDetailsSheet, cleaned and validated.
+class _Details {
+  const _Details({
+    required this.university,
+    required this.college,
+    required this.program,
+    required this.course,
+    required this.semester,
+    required this.schoolYear,
+    required this.professor,
+    required this.visibility,
+    required this.price,
+  });
+
+  final String university;
+  final String college;
+  final String program;
+  final String course;
+  final String semester;
+  final String schoolYear;
+  final String? professor;
+  final String visibility;
+  final double? price;
+}
+
+/// Handles everything about study materials: reading, creating, editing,
+/// uploading files, and deleting.
 class MaterialController extends ChangeNotifier {
+  static const Set<String> _imageExtensions = {'jpg', 'jpeg', 'png', 'gif', 'webp'};
+  static const String _fileMaterialPlaceholder =
+      '_This material is an uploaded file — see the attachment below._';
+
   final MaterialService _service;
   final StorageService _storage = StorageService();
 
@@ -25,38 +56,48 @@ class MaterialController extends ChangeNotifier {
 
   Stream<MaterialModel?> material(String materialId) => _service.streamMaterial(materialId);
 
-  // ---------- WRITES ----------
-  Future<String?> createMaterial({
+  /// Whether the current user may read this material's content and files.
+  bool canAccess(MaterialModel material, String? currentUserId, bool hasPurchased) =>
+      _service.canAccessContent(material, currentUserId, hasPurchased);
+
+  // ---------- CREATE ----------
+
+  /// Creates a text (Markdown) material. [details] is the map returned by
+  /// MaterialDetailsSheet. The cover is uploaded first, so a failed upload
+  /// never leaves a half-created material.
+  Future<String?> createTextMaterial({
     required String ownerId,
     required String title,
     String? description,
     required String content,
-    required String university,
-    required String college,
-    required String program,
-    required String course,
-    required String semester,
-    required String schoolYear,
-    String? professor,
-    required String visibility,
-    double? price,
+    required Map<String, String> details,
+    File? cover,
+    String? coverFilename,
   }) async {
     _startSaving();
+    final d = _parseDetails(details);
+    if (d == null) return null;
+
     try {
+      final coverImage = cover == null
+          ? null
+          : await _uploadCover(cover, coverFilename ?? 'cover.jpg');
+
       final newId = await _service.createMaterial(
         ownerId: ownerId,
         title: title,
         description: description,
         content: content,
-        university: university,
-        college: college,
-        program: program,
-        course: course,
-        semester: semester,
-        schoolYear: schoolYear,
-        professor: professor,
-        visibility: visibility,
-        price: price,
+        university: d.university,
+        college: d.college,
+        program: d.program,
+        course: d.course,
+        semester: d.semester,
+        schoolYear: d.schoolYear,
+        professor: d.professor,
+        visibility: d.visibility,
+        price: d.price,
+        coverImage: coverImage,
       );
       _finishSaving();
       return newId;
@@ -66,16 +107,65 @@ class MaterialController extends ChangeNotifier {
     }
   }
 
+  /// Creates a material from an uploaded file (pdf, docx, image...).
+  /// The file is uploaded first; the material is only created if that works.
+  Future<String?> createFileMaterial({
+    required String ownerId,
+    required String title,
+    required File file,
+    required String filename,
+    required Map<String, String> details,
+  }) async {
+    _startSaving();
+    final d = _parseDetails(details);
+    if (d == null) return null;
+
+    try {
+      final extension = filename.contains('.')
+          ? filename.split('.').last.toLowerCase()
+          : '';
+      final isSensitive = d.visibility != 'public_free';
+
+      final attachment = await _storage.uploadFile(
+        file: file,
+        originalFilename: filename,
+        folder: isSensitive ? 'materials/attachments_restricted' : 'materials/attachments_public',
+        resourceType: _imageExtensions.contains(extension)
+            ? CloudinaryResourceType.Image
+            : CloudinaryResourceType.Raw,
+        useRestrictedPreset: isSensitive,
+      );
+
+      final newId = await _service.createMaterial(
+        ownerId: ownerId,
+        title: title,
+        content: _fileMaterialPlaceholder,
+        university: d.university,
+        college: d.college,
+        program: d.program,
+        course: d.course,
+        semester: d.semester,
+        schoolYear: d.schoolYear,
+        professor: d.professor,
+        visibility: d.visibility,
+        price: d.price,
+        attachments: [attachment],
+      );
+      _finishSaving();
+      return newId;
+    } catch (_) {
+      _failSaving('Could not upload your file. Please try again.');
+      return null;
+    }
+  }
+
+  // ---------- UPDATE ----------
+
+  /// Replaces a material's cover image.
   Future<bool> uploadCoverImage(String materialId, File file, String originalFilename) async {
     _startSaving();
     try {
-      final result = await _storage.uploadFile(
-        file: file,
-        originalFilename: originalFilename,
-        folder: 'materials/covers',
-        resourceType: CloudinaryResourceType.Image,
-        useRestrictedPreset: false, 
-      );
+      final result = await _uploadCover(file, originalFilename);
       await _service.setCoverImage(materialId, result);
       _finishSaving();
       return true;
@@ -85,32 +175,7 @@ class MaterialController extends ChangeNotifier {
     }
   }
 
-  Future<bool> uploadAttachment({
-    required String materialId,
-    required File file,
-    required String originalFilename,
-    required String visibility,
-    required CloudinaryResourceType resourceType,
-  }) async {
-    _startSaving();
-    try {
-      final isSensitive = visibility == 'private' || visibility == 'public_paid';
-      final result = await _storage.uploadFile(
-        file: file,
-        originalFilename: originalFilename,
-        folder: isSensitive ? 'materials/attachments_restricted' : 'materials/attachments_public',
-        resourceType: resourceType,
-        useRestrictedPreset: isSensitive,
-      );
-      await _service.addAttachment(materialId, result);
-      _finishSaving();
-      return true;
-    } catch (_) {
-      _failSaving('Could not upload attachment. Please try again.');
-      return false;
-    }
-  }
-
+  /// Updates title / description / content.
   Future<bool> updateMaterial(String materialId, Map<String, dynamic> fields) async {
     _startSaving();
     try {
@@ -123,6 +188,35 @@ class MaterialController extends ChangeNotifier {
     }
   }
 
+  /// Updates the school details / visibility / price from MaterialDetailsSheet.
+  Future<bool> updateDetails(MaterialModel material, Map<String, String> details) async {
+    _startSaving();
+    final d = _parseDetails(details, fallbackVisibility: material.visibility);
+    if (d == null) return false;
+
+    try {
+      await _service.updateMaterial(material.materialId, {
+        'university': d.university,
+        'college': d.college,
+        'program': d.program,
+        'course': d.course,
+        'semester': d.semester,
+        'school_year': d.schoolYear,
+        'professor': d.professor,
+        'visibility': d.visibility,
+        'price': d.price,
+      });
+      _finishSaving();
+      return true;
+    } catch (_) {
+      _failSaving('Could not update material details. Please try again.');
+      return false;
+    }
+  }
+
+  // ---------- DELETE ----------
+
+  /// Soft delete: the material is hidden but past transactions still reference it.
   Future<bool> removeMaterial(String materialId) async {
     _startSaving();
     try {
@@ -135,6 +229,7 @@ class MaterialController extends ChangeNotifier {
     }
   }
 
+  // ---------- MISC ----------
   Future<Map<String, List<String>>> courseSuggestions(String university) async {
     try {
       return await _service.fetchCourseSuggestions(university);
@@ -150,6 +245,7 @@ class MaterialController extends ChangeNotifier {
   // ---------- ADMIN ----------
   Stream<List<MaterialModel>> allMaterialsAdmin() => _service.streamAllMaterialsAdmin();
 
+  /// Admin only: permanently deletes the material document.
   Future<bool> deleteMaterialPermanently(String materialId) async {
     _startSaving();
     try {
@@ -160,6 +256,47 @@ class MaterialController extends ChangeNotifier {
       _failSaving('Could not delete this material. Please try again.');
       return false;
     }
+  }
+
+  // ---------- PRIVATE HELPERS ----------
+
+  Future<Map<String, dynamic>> _uploadCover(File file, String filename) {
+    return _storage.uploadFile(
+      file: file,
+      originalFilename: filename,
+      folder: 'materials/covers',
+      resourceType: CloudinaryResourceType.Image,
+      useRestrictedPreset: false,
+    );
+  }
+
+  /// Cleans the sheet's map and checks that a paid material has a real price.
+  /// Returns null (and sets [errorMessage]) if something is invalid.
+  _Details? _parseDetails(Map<String, String> d, {String fallbackVisibility = 'private'}) {
+    final visibility = d['visibility'] ?? fallbackVisibility;
+
+    double? price;
+    if (visibility == 'public_paid') {
+      price = double.tryParse((d['price'] ?? '').trim());
+      if (price == null || price <= 0) {
+        _failSaving('Please enter a valid price greater than zero.');
+        return null;
+      }
+    }
+
+    final professor = (d['professor'] ?? '').trim();
+
+    return _Details(
+      university: (d['university'] ?? '').trim(),
+      college: (d['college'] ?? '').trim(),
+      program: (d['program'] ?? '').trim(),
+      course: (d['course'] ?? '').trim(),
+      semester: d['semester'] ?? '',
+      schoolYear: (d['schoolYear'] ?? '').trim(),
+      professor: professor.isEmpty ? null : professor,
+      visibility: visibility,
+      price: price,
+    );
   }
 
   void _startSaving() {
