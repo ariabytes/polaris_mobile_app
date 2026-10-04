@@ -7,6 +7,7 @@ import '/models/user_model.dart';
 import 'edit_profile.dart';
 
 
+import 'package:polaris_mobile_app/services/theme_service.dart';
 class StudentProfileView extends StatefulWidget {
   const StudentProfileView({super.key});
 
@@ -15,16 +16,17 @@ class StudentProfileView extends StatefulWidget {
 }
 
 class _StudentProfileViewState extends State<StudentProfileView> {
-  static const Color cream = Color(0xFFFCF6F0);
-  static const Color navy = Color(0xFF252A5A);
-  static const Color purple = Color(0xFF7B5EA7);
-  static const Color gold = Color(0xFFE8B94A);
+  Color get cream => context.pc.background;
+  Color get navy => context.pc.ink;
+  Color get purple => context.pc.accent;
+  Color get gold => context.pc.star;
+  Color get cardColor => context.pc.card;
+  Color get mutedColor => context.pc.muted;
+
 
   bool _dialogShown = false;
 
   bool _isProfileIncomplete(UserModel profile) {
-    // "Incomplete" = the core academic fields are still empty.
-    // Adjust which fields count as "required" as you see fit.
     return profile.university == null ||
         profile.university!.isEmpty ||
         profile.program == null ||
@@ -57,35 +59,26 @@ class _StudentProfileViewState extends State<StudentProfileView> {
               Container(
                 padding: const EdgeInsets.fromLTRB(24, 40, 24, 24),
                 decoration: BoxDecoration(
-                  color: cream,
+                  color: cardColor,
                   borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: navy.withOpacity(0.2),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
+                  ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Swap for a real illustration asset if you have one —
-                    // Image.asset('assets/empty_profile.png', height: 120)
                     Container(
                       padding: const EdgeInsets.all(18),
                       decoration: BoxDecoration(
                         color: gold.withOpacity(0.15),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.person_search_rounded,
                         size: 56,
                         color: navy,
                       ),
                     ),
                     const SizedBox(height: 18),
-                    const Text(
+                    Text(
                       'Oop! Nothing here.',
                       style: TextStyle(
                         fontSize: 20,
@@ -94,12 +87,12 @@ class _StudentProfileViewState extends State<StudentProfileView> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Text(
+                    Text(
                       'Finish your profile now!',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.black54,
+                        color: mutedColor,
                       ),
                     ),
                     const SizedBox(height: 22),
@@ -111,13 +104,6 @@ class _StudentProfileViewState extends State<StudentProfileView> {
                           Navigator.of(dialogContext).pop();
                           _goToEditProfile(context);
                         },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: navy,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
                         child: const Text(
                           'Edit Profile',
                           style: TextStyle(fontWeight: FontWeight.bold),
@@ -127,7 +113,6 @@ class _StudentProfileViewState extends State<StudentProfileView> {
                   ],
                 ),
               ),
-              // X button, floating slightly outside the top-right corner
               Positioned(
                 top: -12,
                 right: -12,
@@ -135,11 +120,11 @@ class _StudentProfileViewState extends State<StudentProfileView> {
                   onTap: () => Navigator.of(dialogContext).pop(),
                   child: Container(
                     padding: const EdgeInsets.all(6),
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: navy,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.close, size: 18, color: Colors.white),
+                    child: Icon(Icons.close, size: 18, color: cream),
                   ),
                 ),
               ),
@@ -163,10 +148,8 @@ class _StudentProfileViewState extends State<StudentProfileView> {
     final uid = auth.currentUserProfile?.userId;
 
     return Scaffold(
-      backgroundColor: cream,
       appBar: AppBar(
-        backgroundColor: navy,
-        foregroundColor: Colors.white,
+        leading: const ThemeToggleButton(),
         title: const Text('My Profile', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
@@ -179,7 +162,7 @@ class _StudentProfileViewState extends State<StudentProfileView> {
         stream: auth.currentUserProfileStream,
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator(color: navy));
+            return Center(child: CircularProgressIndicator(color: navy));
           }
 
           final profile = snapshot.data!;
@@ -197,7 +180,7 @@ class _StudentProfileViewState extends State<StudentProfileView> {
                     backgroundColor: purple.withOpacity(0.2),
                     backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
                     child: photoUrl == null
-                        ? const Icon(Icons.person, size: 44, color: navy)
+                        ? Icon(Icons.person, size: 44, color: navy)
                         : null,
                   ),
                   const SizedBox(width: 18),
@@ -207,7 +190,7 @@ class _StudentProfileViewState extends State<StudentProfileView> {
                       children: [
                         Text(
                           profile.name,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 22,
                             color: navy,
@@ -217,14 +200,14 @@ class _StudentProfileViewState extends State<StudentProfileView> {
                         if (profile.program != null && profile.yearLevel != null)
                           Text(
                             '${profile.program} • ${profile.yearLevel}',
-                            style: const TextStyle(color: Colors.black54, fontSize: 14),
+                            style: TextStyle(color: mutedColor, fontSize: 14),
                           ),
                         if (profile.bio != null && profile.bio!.isNotEmpty) ...[
                           const SizedBox(height: 6),
                           Text(
                             profile.bio!,
-                            style: const TextStyle(
-                              color: Colors.black54,
+                            style: TextStyle(
+                              color: mutedColor,
                               fontSize: 13,
                               fontStyle: FontStyle.italic,
                             ),
@@ -238,38 +221,36 @@ class _StudentProfileViewState extends State<StudentProfileView> {
 
               const SizedBox(height: 20),
 
-              // Stats strip — materials / views / earnings
               if (uid != null) _StatsStrip(uid: uid),
 
               const SizedBox(height: 20),
 
               Card(
-                elevation: 3,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 child: Column(
                   children: [
                     ListTile(
-                      leading: const Icon(Icons.email_outlined, color: navy),
+                      leading: Icon(Icons.email_outlined, color: navy),
                       title: const Text('Email'),
                       subtitle: Text(profile.email),
                     ),
                     ListTile(
-                      leading: const Icon(Icons.school_outlined, color: navy),
+                      leading: Icon(Icons.school_outlined, color: navy),
                       title: const Text('University'),
                       subtitle: Text(profile.university ?? 'Not set'),
                     ),
                     ListTile(
-                      leading: const Icon(Icons.apartment_outlined, color: navy),
+                      leading: Icon(Icons.apartment_outlined, color: navy),
                       title: const Text('Department'),
                       subtitle: Text(profile.college ?? 'Not set'),
                     ),
                     ListTile(
-                      leading: const Icon(Icons.menu_book_outlined, color: navy),
+                      leading: Icon(Icons.menu_book_outlined, color: navy),
                       title: const Text('Program'),
                       subtitle: Text(profile.program ?? 'Not set'),
                     ),
                     ListTile(
-                      leading: const Icon(Icons.cake_outlined, color: navy),
+                      leading: Icon(Icons.cake_outlined, color: navy),
                       title: const Text('Birthday'),
                       subtitle: Text(
                         profile.birthday != null
@@ -288,15 +269,9 @@ class _StudentProfileViewState extends State<StudentProfileView> {
                 height: 48,
                 child: OutlinedButton.icon(
                   onPressed: () => _goToEditProfile(context),
-                  icon: const Icon(Icons.edit_outlined, color: navy),
-                  label: const Text('Edit Profile', style: TextStyle(color: navy)),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: navy),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                  icon: Icon(Icons.edit_outlined, color: navy),
+                  label: Text('Edit Profile', style: TextStyle(color: navy)),
                   ),
-                ),
               ),
             ],
           );
@@ -311,12 +286,14 @@ class _StatsStrip extends StatelessWidget {
 
   final String uid;
 
-  static const Color navy = Color(0xFF252A5A);
-  static const Color purple = Color(0xFF7B5EA7);
-  static const Color gold = Color(0xFFE8B94A);
 
   @override
   Widget build(BuildContext context) {
+    final _pc = context.pc;
+    final navy = _pc.ink;
+    final purple = _pc.accent;
+    final gold = _pc.star;
+
     final materialController = context.read<MaterialController>();
     final transactionController = context.read<TransactionController>();
 
@@ -334,11 +311,6 @@ class _StatsStrip extends StatelessWidget {
           stream: transactionController.sellerTotalEarnings(uid),
           builder: (context, earningsSnap) {
             if (earningsSnap.hasError) {
-              // Likely cause: missing Firestore composite index for
-              // transactions(seller_id, purchased_at). Check the debug
-              // console for a "FAILED_PRECONDITION" error with a link to
-              // create it, or add it manually in the Firestore console
-              // under Indexes.
               debugPrint('sellerTotalEarnings stream error: ${earningsSnap.error}');
             }
 
@@ -378,10 +350,14 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final _pc = context.pc;
+    final cardColor = _pc.card;
+    final mutedColor = _pc.muted;
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
@@ -392,7 +368,7 @@ class _StatCard extends StatelessWidget {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
           ),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+          Text(label, style: TextStyle(fontSize: 12, color: mutedColor)),
         ],
       ),
     );

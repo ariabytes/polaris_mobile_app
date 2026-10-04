@@ -5,9 +5,6 @@ import '../models/material_model.dart';
 import '../services/material_service.dart';
 import '../services/storage_service.dart';
 
-/// Reads: pass-through Stream getters — the View wires these straight into
-/// a StreamBuilder, no local list caching needed.
-/// Writes: own isSaving/errorMessage so forms can show progress + failures.
 class MaterialController extends ChangeNotifier {
   final MaterialService _service;
   final StorageService _storage = StorageService();
@@ -29,10 +26,6 @@ class MaterialController extends ChangeNotifier {
   Stream<MaterialModel?> material(String materialId) => _service.streamMaterial(materialId);
 
   // ---------- WRITES ----------
-
-  /// Returns the new material's ID on success, or null on failure — the
-  /// caller needs the ID to immediately attach an uploaded file to it
-  /// (see the My Materials upload button flow).
   Future<String?> createMaterial({
     required String ownerId,
     required String title,
@@ -81,7 +74,7 @@ class MaterialController extends ChangeNotifier {
         originalFilename: originalFilename,
         folder: 'materials/covers',
         resourceType: CloudinaryResourceType.Image,
-        useRestrictedPreset: false, // covers are always public
+        useRestrictedPreset: false, 
       );
       await _service.setCoverImage(materialId, result);
       _finishSaving();
@@ -130,8 +123,6 @@ class MaterialController extends ChangeNotifier {
     }
   }
 
-  /// Owner-facing soft delete — flips status to 'removed'. Historical
-  /// transactions still resolve this material afterwards.
   Future<bool> removeMaterial(String materialId) async {
     _startSaving();
     try {
@@ -144,35 +135,21 @@ class MaterialController extends ChangeNotifier {
     }
   }
 
-  /// Fire-and-forget — a view count bump shouldn't block the UI or show
-  /// a loading spinner.
+  Future<Map<String, List<String>>> courseSuggestions(String university) async {
+    try {
+      return await _service.fetchCourseSuggestions(university);
+    } catch (_) {
+      return {};
+    }
+  }
+
   void registerView(String materialId) {
     _service.incrementViewCount(materialId);
   }
 
   // ---------- ADMIN ----------
-
-  /// Every material regardless of status or visibility — private and
-  /// removed materials included, unlike the public/owner-facing streams.
-  /// Gate access to whatever screen calls this with `isAdmin`; Firestore's
-  /// `isAdmin()` branch on /materials read rules is the real enforcement.
   Stream<List<MaterialModel>> allMaterialsAdmin() => _service.streamAllMaterialsAdmin();
 
-  /// Hard-deletes a material document — NOT the same as removeMaterial()'s
-  /// status flip. Named differently on purpose so it's never confused with
-  /// the owner-facing soft delete.
-  ///
-  /// Any transactions referencing this material_id keep their own
-  /// buyer/seller/price snapshot, so no financial history is lost, but
-  /// streamMaterial(materialId) will return null afterwards — screens that
-  /// join a transaction back to its material (e.g. "My Purchases" showing
-  /// the title/cover) need to handle that gracefully.
-  ///
-  /// Does NOT delete the material's Cloudinary cover image or attachments
-  /// — that requires a signed request with your Cloudinary API secret,
-  /// which can't live in this client app. Without a backend, those assets
-  /// are orphaned; clean them up manually via the Cloudinary console if
-  /// storage usage matters.
   Future<bool> deleteMaterialPermanently(String materialId) async {
     _startSaving();
     try {
@@ -183,11 +160,6 @@ class MaterialController extends ChangeNotifier {
       _failSaving('Could not delete this material. Please try again.');
       return false;
     }
-  }
-
-  void clearError() {
-    _errorMessage = null;
-    notifyListeners();
   }
 
   void _startSaving() {

@@ -22,8 +22,6 @@ class TransactionController extends ChangeNotifier {
   Stream<bool> hasPurchased({required String buyerId, required String materialId}) =>
       _service.streamHasPurchased(buyerId: buyerId, materialId: materialId);
 
-  /// Running total of this seller's earnings — derived by summing their
-  /// sales stream, not a stored value. Recomputes live on every new sale.
   Stream<double> sellerTotalEarnings(String sellerId) {
     return mySales(sellerId).map(
       (transactions) => transactions.fold<double>(0, (sum, t) => sum + t.sellerEarnings),
@@ -31,12 +29,8 @@ class TransactionController extends ChangeNotifier {
   }
 
   // ---------- ADMIN-ONLY ----------
-  /// Every transaction on the platform — pair with an admin-only route/guard
-  /// in your View layer; Firestore rules are the real enforcement.
   Stream<List<TransactionModel>> allTransactions() => _service.streamAllTransactions();
 
-  /// Running total of platform earnings (sum of every platform_fee) —
-  /// derived the same way as sellerTotalEarnings, just unfiltered.
   Stream<double> totalPlatformEarnings() {
     return allTransactions().map(
       (transactions) => transactions.fold<double>(0, (sum, t) => sum + t.platformFee),
@@ -70,10 +64,6 @@ class TransactionController extends ChangeNotifier {
     }
   }
 
-  /// Free-tier equivalent of purchaseMaterial — records a $0 transaction so
-  /// a saved free material shows up alongside real purchases in My
-  /// Purchases / My Materials → Purchased. Reuses isPurchasing/errorMessage
-  /// since a given screen only ever triggers one of the two at a time.
   Future<bool> saveFreeMaterial({
     required String materialId,
     required String buyerId,
@@ -93,10 +83,5 @@ class TransactionController extends ChangeNotifier {
       notifyListeners();
       return false;
     }
-  }
-
-  void clearError() {
-    _errorMessage = null;
-    notifyListeners();
   }
 }

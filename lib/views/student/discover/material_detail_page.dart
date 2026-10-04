@@ -9,6 +9,7 @@ import '../material/document_viewer.dart';
 import '../material/material_details_sheet.dart';
 import 'checkout_page.dart';
 
+import 'package:polaris_mobile_app/services/theme_service.dart';
 /// Material detail page — shown when a student taps a card from Discover,
 /// My Materials, or My Purchases.
 /// Lives at lib/views/student/discover/material_detail_page.dart, alongside
@@ -37,10 +38,13 @@ class MaterialDetailPage extends StatefulWidget {
 }
 
 class _MaterialDetailPageState extends State<MaterialDetailPage> {
-  static const cream = Color(0xFFFCF6F0);
-  static const navy = Color(0xFF252A5A);
-  static const purple = Color(0xFF7B5EA7);
-  static const gold = Color(0xFFE8B94A);
+  Color get navy => context.pc.ink;
+  Color get purple => context.pc.accent;
+  Color get gold => context.pc.star;
+  Color get cardColor => context.pc.card;
+  Color get goodColor => context.pc.success;
+  Color get badColor => context.pc.danger;
+
 
   bool _viewCounted = false;
 
@@ -53,12 +57,11 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
     final currentUserId = authController.currentUserProfile?.userId;
 
     return Scaffold(
-      backgroundColor: cream,
       body: StreamBuilder<MaterialModel?>(
         stream: materialController.material(widget.materialId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: purple));
+            return Center(child: CircularProgressIndicator(color: purple));
           }
 
           final material = snapshot.data;
@@ -110,7 +113,7 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
     );
   }
 
-  // ---------- ACCESS LOGIC (mirrors MaterialService.canAccessContent) ----------
+  //  ACCESS LOGIC (mirrors MaterialService.canAccessContent) ----------
 
   bool _canAccessContent(MaterialModel m, String? currentUserId, bool hasTransacted) {
     if (m.visibility == 'public_free') return true;
@@ -119,7 +122,7 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
     return false;
   }
 
-  // ---------- BODY ----------
+  //  BODY ----------
 
   Widget _buildScaffoldBody({
     required MaterialModel material,
@@ -135,21 +138,19 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
     return CustomScrollView(
       slivers: [
         SliverAppBar(
-          backgroundColor: cream,
           expandedHeight: coverUrl != null ? 200 : 0,
           pinned: true,
-          iconTheme: const IconThemeData(color: navy),
           flexibleSpace: coverUrl != null
               ? FlexibleSpaceBar(background: Image.network(coverUrl, fit: BoxFit.cover))
               : null,
           actions: isOwner
               ? [
                   IconButton(
-                    icon: const Icon(Icons.edit_outlined, color: navy),
+                    icon: Icon(Icons.edit_outlined, color: navy),
                     onPressed: () => _editMaterial(material, materialController),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.delete_outline, color: navy),
+                    icon: Icon(Icons.delete_outline, color: navy),
                     onPressed: () => _confirmRemove(material, materialController),
                   ),
                 ]
@@ -163,7 +164,7 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
               children: [
                 Text(
                   material.title,
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: navy),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: navy),
                 ),
                 const SizedBox(height: 6),
                 _buildVisibilityAndStats(material),
@@ -215,7 +216,7 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
     );
   }
 
-  // ---------- META / STATS ----------
+  // STATS ----------
 
   Widget _buildVisibilityAndStats(MaterialModel material) {
     final label = material.isPrivate
@@ -227,7 +228,7 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
     final chipColor = material.isPrivate
         ? navy.withOpacity(0.5)
         : material.isPublicFree
-            ? Colors.green
+            ? goodColor
             : gold;
 
     return Row(
@@ -262,7 +263,7 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
 
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: rows
@@ -275,7 +276,7 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
     );
   }
 
-  // ---------- CONTENT ----------
+  // CONTENT ----------
 
   Widget _buildContentSection(MaterialModel material) {
     if (material.content.trim().isEmpty) return const SizedBox.shrink();
@@ -283,7 +284,7 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Notes', style: TextStyle(fontWeight: FontWeight.bold, color: navy, fontSize: 15)),
+        Text('Notes', style: TextStyle(fontWeight: FontWeight.bold, color: navy, fontSize: 15)),
         const SizedBox(height: 8),
         SelectableText(material.content, style: TextStyle(color: navy.withOpacity(0.85), height: 1.5)),
       ],
@@ -294,14 +295,14 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Attachments', style: TextStyle(fontWeight: FontWeight.bold, color: navy, fontSize: 15)),
+        Text('Attachments', style: TextStyle(fontWeight: FontWeight.bold, color: navy, fontSize: 15)),
         const SizedBox(height: 8),
         ...material.attachments.map((a) => _AttachmentTile(attachment: a)),
       ],
     );
   }
 
-  // ---------- SAVE (free materials) ----------
+  // SAVE (free materials) ----------
 
   Widget _buildSaveSection(
     MaterialModel material,
@@ -320,8 +321,8 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
           icon: Icon(alreadySaved ? Icons.check_circle : Icons.bookmark_add_outlined),
           label: Text(alreadySaved ? 'Saved to My Materials' : 'Save to My Materials'),
           style: OutlinedButton.styleFrom(
-            foregroundColor: alreadySaved ? Colors.green : navy,
-            side: BorderSide(color: alreadySaved ? Colors.green : navy.withOpacity(0.4)),
+            foregroundColor: alreadySaved ? goodColor : navy,
+            side: BorderSide(color: alreadySaved ? goodColor : navy.withOpacity(0.4)),
             padding: const EdgeInsets.symmetric(vertical: 12),
           ),
         ),
@@ -351,13 +352,13 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
     );
   }
 
-  // ---------- PURCHASE GATE (paid materials) ----------
+  //PURCHASE GATE (paid materials) ----------
 
   Widget _buildPurchaseGate(MaterialModel material) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: gold.withOpacity(0.4)),
       ),
@@ -368,7 +369,7 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
             children: [
               Icon(Icons.lock_outline, color: navy.withOpacity(0.6)),
               const SizedBox(width: 8),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Purchase this material to unlock the full notes and attachments.',
                   style: TextStyle(color: navy, fontSize: 13),
@@ -379,7 +380,7 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
           const SizedBox(height: 14),
           Text(
             '₱${material.price?.toStringAsFixed(2) ?? "0.00"}',
-            style: const TextStyle(color: navy, fontSize: 22, fontWeight: FontWeight.bold),
+            style: TextStyle(color: navy, fontSize: 22, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 14),
           SizedBox(
@@ -390,11 +391,6 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
                 context,
                 MaterialPageRoute(builder: (_) => CheckoutPage(material: material)),
               ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: navy,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
               child: const Text('Proceed to Checkout'),
             ),
           ),
@@ -403,7 +399,7 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
     );
   }
 
-  // ---------- OWNER ACTIONS ----------
+  // OWNER ACTIONS ----------
 
   Future<void> _editMaterial(MaterialModel material, MaterialController materialController) async {
     final result = await showModalBottomSheet<Map<String, dynamic>>(
@@ -454,7 +450,7 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Remove', style: TextStyle(color: Colors.redAccent)),
+            child: Text('Remove', style: TextStyle(color: badColor)),
           ),
         ],
       ),
@@ -475,33 +471,33 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
   }
 }
 
-/// One attachment row — tapping opens it via DocumentViewer, wrapping
-/// Office formats in the Google Docs viewer, everything else opened as-is.
 class _AttachmentTile extends StatelessWidget {
   const _AttachmentTile({required this.attachment});
 
   final Map<String, dynamic> attachment;
 
-  static const navy = Color(0xFF252A5A);
-  static const purple = Color(0xFF7B5EA7);
 
   @override
   Widget build(BuildContext context) {
+    final _pc = context.pc;
+    final navy = _pc.ink;
+    final purple = _pc.accent;
+    final cardColor = _pc.card;
+
     final format = (attachment['format'] as String? ?? '').toLowerCase();
     final filename = attachment['original_filename'] as String? ?? 'File';
     final url = attachment['url'] as String?;
     final sizeBytes = (attachment['size_bytes'] as num?)?.toInt() ?? 0;
 
     return Card(
-      elevation: 0,
-      color: Colors.white,
+      color: cardColor,
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
         leading: Icon(_iconForFormat(format), color: purple),
         title: Text(filename, maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text('${format.toUpperCase()} · ${_formatBytes(sizeBytes)}'),
-        trailing: const Icon(Icons.open_in_new, size: 18, color: navy),
+        trailing: Icon(Icons.open_in_new, size: 18, color: navy),
         onTap: url == null ? null : () => DocumentViewer.open(context, fileUrl: url, format: format),
       ),
     );

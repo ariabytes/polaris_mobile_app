@@ -4,21 +4,17 @@ import 'package:provider/provider.dart';
 import '../../../controllers/auth_controller.dart';
 import '../../../models/user_model.dart';
 
+import 'package:polaris_mobile_app/services/theme_service.dart';
 class AdminAccountsView extends StatelessWidget {
   const AdminAccountsView({super.key});
 
-  static const Color cream = Color(0xFFFEEFDD);
-  static const Color orange = Color(0xFFF87C4F);
 
   @override
   Widget build(BuildContext context) {
     final authController = context.read<AuthController>();
 
     return Scaffold(
-      backgroundColor: cream,
       appBar: AppBar(
-        backgroundColor: orange,
-        foregroundColor: Colors.white,
         title: const Text('Accounts', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
       body: StreamBuilder<List<UserModel>>(
@@ -53,7 +49,6 @@ class _UserTile extends StatelessWidget {
 
   final UserModel user;
 
-  static const Color navy = Color(0xFF252A5A);
 
   Future<void> _confirmDelete(BuildContext context) async {
     final confirmed = await showDialog<bool>(
@@ -73,7 +68,7 @@ class _UserTile extends StatelessWidget {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: context.pc.danger),
             child: const Text('Delete'),
           ),
         ],
@@ -98,11 +93,15 @@ class _UserTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final _pc = context.pc;
+    final navy = _pc.ink;
+    final cardColor = _pc.card;
+    final badColor = _pc.danger;
+
     final photoUrl = user.profilePhoto?['url'] as String?;
 
     return Card(
-      elevation: 0,
-      color: Colors.white,
+      color: cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ListTile(
         leading: CircleAvatar(
@@ -116,7 +115,7 @@ class _UserTile extends StatelessWidget {
         subtitle: Text('${user.email}\n${user.role}'),
         isThreeLine: true,
         trailing: IconButton(
-          icon: const Icon(Icons.delete_outline, color: Colors.red),
+          icon: Icon(Icons.delete_outline, color: badColor),
           onPressed: () => _confirmDelete(context),
         ),
       ),

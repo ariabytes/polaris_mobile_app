@@ -5,6 +5,7 @@ import 'package:polaris_mobile_app/views/admin/accounts/admin_accounts.dart';
 import 'package:polaris_mobile_app/views/admin/materials/admin_materials.dart';
 import 'package:polaris_mobile_app/views/admin/profile/admin_profile.dart';
 
+import 'package:polaris_mobile_app/services/theme_service.dart';
 class AdminNavBar extends StatefulWidget {
   const AdminNavBar({super.key});
 
@@ -13,9 +14,11 @@ class AdminNavBar extends StatefulWidget {
 }
 
 class _AdminNavBarState extends State<AdminNavBar> {
-  static const Color cream = Color(0xFFFEEFDD);
-  static const Color orange = Color(0xFFF87C4F);
-  static const Color navy = Color(0xFF252A5A);
+  Color get cream => context.pc.background;
+  Color get navy => context.pc.ink;
+  Color get orange => context.pc.accent;
+  Color get mutedColor => context.pc.muted;
+
 
   int _selectedIndex = 0;
 
@@ -65,7 +68,7 @@ class _AdminNavBarState extends State<AdminNavBar> {
                     : FontWeight.normal,
                 color: selected
                     ? navy
-                    : Colors.black54,
+                    : mutedColor,
               );
             }),
 
@@ -77,7 +80,7 @@ class _AdminNavBarState extends State<AdminNavBar> {
               return IconThemeData(
                 color: selected
                     ? navy
-                    : Colors.black54,
+                    : mutedColor,
               );
             }),
           ),

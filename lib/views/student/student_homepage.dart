@@ -7,21 +7,25 @@ import '/controllers/transaction_controller.dart';
 import '/models/material_model.dart';
 import '/models/transaction_model.dart';
 import '/models/user_model.dart';
+import 'material/create_material.dart';
+import 'material/material_preview_sheet.dart';
+
+import 'package:polaris_mobile_app/services/theme_service.dart';
+
+const int _homeLimit = 4;
 
 class StudentHomepage extends StatelessWidget {
   const StudentHomepage({super.key});
 
-  static const Color cream = Color(0xFFFCF6F0);
-  static const Color navy = Color(0xFF252A5A);
-  static const Color purple = Color(0xFF7B5EA7);
-  static const Color gold = Color(0xFFE8B94A);
-
   @override
   Widget build(BuildContext context) {
+    final _pc = context.pc;
+    final navy = _pc.ink;
+    final mutedColor = _pc.muted;
+
     final auth = context.read<AuthController>();
 
     return Scaffold(
-      backgroundColor: cream,
       body: SafeArea(
         child: StreamBuilder<UserModel?>(
           stream: auth.currentUserProfileStream,
@@ -41,39 +45,32 @@ class StudentHomepage extends StatelessWidget {
                     Expanded(
                       child: Text(
                         'Hi, $firstName! 👋',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 26,
                           fontWeight: FontWeight.bold,
                           color: navy,
                         ),
                       ),
                     ),
-                    IconButton(
-                      onPressed: () => auth.logout(),
-                      icon: const Icon(Icons.logout, color: navy),
-                      tooltip: 'Log out',
-                    ),
+                    const ThemeToggleButton(),
                   ],
                 ),
-                const Text(
+                Text(
                   'Ready to catch up on your materials?',
-                  style: TextStyle(fontSize: 14, color: Colors.black54),
+                  style: TextStyle(fontSize: 14, color: mutedColor),
                 ),
                 const SizedBox(height: 24),
-
                 if (profile != null) ...[
                   const _SectionHeader(title: 'My Materials'),
                   const SizedBox(height: 10),
                   _MyMaterialsGrid(ownerId: profile.userId),
-
                   const SizedBox(height: 26),
-
                   const _SectionHeader(title: 'Purchased Materials'),
                   const SizedBox(height: 10),
                   _PurchasedMaterialsGrid(buyerId: profile.userId),
                 ] else
-                  const Padding(
-                    padding: EdgeInsets.only(top: 40),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 40),
                     child: Center(child: CircularProgressIndicator(color: navy)),
                   ),
               ],
@@ -91,12 +88,15 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final _pc = context.pc;
+    final navy = _pc.ink;
+
     return Text(
       title,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 17,
         fontWeight: FontWeight.bold,
-        color: StudentHomepage.navy,
+        color: navy,
       ),
     );
   }
@@ -116,15 +116,18 @@ class _MyMaterialsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final _pc = context.pc;
+    final navy = _pc.ink;
+
     final materialController = context.read<MaterialController>();
 
     return StreamBuilder<List<MaterialModel>>(
       stream: materialController.myMaterials(ownerId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: CircularProgressIndicator(color: StudentHomepage.navy)),
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Center(child: CircularProgressIndicator(color: navy)),
           );
         }
 
@@ -139,7 +142,7 @@ class _MyMaterialsGrid extends StatelessWidget {
           );
         }
 
-        final materials = snapshot.data ?? [];
+        final materials = (snapshot.data ?? []).take(_homeLimit).toList();
 
         if (materials.isEmpty) {
           return const _EmptyRow(
@@ -162,6 +165,17 @@ class _MyMaterialsGrid extends StatelessWidget {
               trailingLabel: m.isPublicPaid
                   ? '₱${m.price?.toStringAsFixed(0) ?? '0'}'
                   : (m.isPublicFree ? 'Free' : 'Private'),
+              onTap: () {
+                if (m.attachments.isNotEmpty) {
+                  MaterialPreviewSheet.show(context, m);
+                } else {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => CreateMaterialView(existingMaterial: m),
+                    ),
+                  );
+                }
+              },
             );
           },
         );
@@ -174,8 +188,36 @@ class _PurchasedMaterialsGrid extends StatelessWidget {
   const _PurchasedMaterialsGrid({required this.buyerId});
   final String buyerId;
 
+  /// File materials -> preview sheet. Text (String) materials -> read-only
+  /// viewer (the buyer can read it but not edit it).
+  void _openPurchased(BuildContext context, MaterialModel m) {
+    if (m.attachments.isNotEmpty) {
+      MaterialPreviewSheet.show(context, m);
+      return;
+    }
+
+    if (m.content.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This material has no content to open.')),
+      );
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CreateMaterialView(
+          existingMaterial: m,
+          readOnly: true,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final _pc = context.pc;
+    final navy = _pc.ink;
+
     final transactionController = context.read<TransactionController>();
     final materialController = context.read<MaterialController>();
 
@@ -183,9 +225,9 @@ class _PurchasedMaterialsGrid extends StatelessWidget {
       stream: transactionController.myPurchases(buyerId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: CircularProgressIndicator(color: StudentHomepage.navy)),
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Center(child: CircularProgressIndicator(color: navy)),
           );
         }
 
@@ -201,7 +243,7 @@ class _PurchasedMaterialsGrid extends StatelessWidget {
           );
         }
 
-        final purchases = snapshot.data ?? [];
+        final purchases = (snapshot.data ?? []).take(_homeLimit).toList();
 
         if (purchases.isEmpty) {
           return const _EmptyRow(
@@ -242,6 +284,7 @@ class _PurchasedMaterialsGrid extends StatelessWidget {
                   trailingLabel: t.materialPrice > 0
                       ? '₱${t.materialPrice.toStringAsFixed(0)}'
                       : 'Free',
+                  onTap: () => _openPurchased(context, m),
                 );
               },
             );
@@ -258,86 +301,89 @@ class _MaterialCard extends StatelessWidget {
     required this.subtitle,
     required this.coverUrl,
     required this.trailingLabel,
+    this.onTap,
   });
 
   final String title;
   final String? subtitle;
   final String? coverUrl;
   final String? trailingLabel;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: StudentHomepage.navy.withOpacity(0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
+    final _pc = context.pc;
+    final navy = _pc.ink;
+    final purple = _pc.accent;
+    final gold = _pc.star;
+    final cardColor = _pc.card;
+    final mutedColor = _pc.muted;
+
+    return Material(
+      color: cardColor,
+      borderRadius: BorderRadius.circular(16),
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: SizedBox(
-              width: double.infinity,
-              child: coverUrl != null
-                  ? Image.network(coverUrl!, fit: BoxFit.cover)
-                  : Container(
-                      color: StudentHomepage.purple.withOpacity(0.15),
-                      child: const Icon(
-                        Icons.menu_book_outlined,
-                        color: StudentHomepage.navy,
-                        size: 32,
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: SizedBox(
+                width: double.infinity,
+                child: coverUrl != null
+                    ? Image.network(coverUrl!, fit: BoxFit.cover)
+                    : Container(
+                        color: purple.withOpacity(0.15),
+                        child: Icon(
+                          Icons.auto_awesome,
+                          color: navy,
+                          size: 32,
+                        ),
                       ),
-                    ),
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    color: StudentHomepage.navy,
-                  ),
-                ),
-                if (subtitle != null && subtitle!.isNotEmpty) ...[
-                  const SizedBox(height: 2),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Text(
-                    subtitle!,
+                    title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 11, color: Colors.black54),
-                  ),
-                ],
-                if (trailingLabel != null) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    trailingLabel!,
-                    style: const TextStyle(
-                      fontSize: 11,
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: StudentHomepage.gold,
+                      fontSize: 13,
+                      color: navy,
                     ),
                   ),
+                  if (subtitle != null && subtitle!.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 11, color: mutedColor),
+                    ),
+                  ],
+                  if (trailingLabel != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      trailingLabel!,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: gold,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -348,9 +394,12 @@ class _MaterialCardSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final _pc = context.pc;
+    final cardColor = _pc.card;
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(16),
       ),
     );
@@ -364,22 +413,28 @@ class _EmptyRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final _pc = context.pc;
+    final navy = _pc.ink;
+    final purple = _pc.accent;
+    final cardColor = _pc.card;
+    final mutedColor = _pc.muted;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: StudentHomepage.navy.withOpacity(0.1)),
+        border: Border.all(color: navy.withOpacity(0.1)),
       ),
       child: Row(
         children: [
-          Icon(icon, color: StudentHomepage.purple, size: 28),
+          Icon(icon, color: purple, size: 28),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(color: Colors.black54, fontSize: 13),
+              style: TextStyle(color: mutedColor, fontSize: 13),
             ),
           ),
         ],

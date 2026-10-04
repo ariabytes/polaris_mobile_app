@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../../controllers/auth_controller.dart';
 
+import 'package:polaris_mobile_app/services/theme_service.dart';
 class AdminEditProfileView extends StatefulWidget {
   const AdminEditProfileView({super.key});
 
@@ -13,9 +14,10 @@ class AdminEditProfileView extends StatefulWidget {
 }
 
 class _AdminEditProfileViewState extends State<AdminEditProfileView> {
-  static const Color cream = Color(0xFFFEEFDD);
-  static const Color orange = Color(0xFFF87C4F);
-  static const Color navy = Color(0xFF252A5A);
+  Color get cream => context.pc.background;
+  Color get navy => context.pc.ink;
+  Color get orange => context.pc.accent;
+
 
   final _formKey = GlobalKey<FormState>();
 
@@ -119,18 +121,15 @@ class _AdminEditProfileViewState extends State<AdminEditProfileView> {
     final photoUrl = profile?.profilePhoto?['url'] as String?;
 
     return Scaffold(
-      backgroundColor: cream,
       appBar: AppBar(
-        backgroundColor: orange,
-        foregroundColor: Colors.white,
         title: const Text('Edit Profile', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
             icon: authController.isLoading
-                ? const SizedBox(
+                ? SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(strokeWidth: 2, color: cream),
                   )
                 : const Icon(Icons.check),
             onPressed: authController.isLoading ? null : _save,
@@ -168,7 +167,7 @@ class _AdminEditProfileViewState extends State<AdminEditProfileView> {
                       child: CircleAvatar(
                         radius: 16,
                         backgroundColor: orange,
-                        child: const Icon(Icons.edit, size: 16, color: Colors.white),
+                        child: Icon(Icons.edit, size: 16, color: cream),
                       ),
                     ),
                   ],

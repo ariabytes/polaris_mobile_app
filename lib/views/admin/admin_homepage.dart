@@ -6,15 +6,17 @@ import '../../controllers/material_controller.dart';
 import '../../controllers/transaction_controller.dart';
 import 'transactions/admin_transactions.dart';
 
+import 'package:polaris_mobile_app/services/theme_service.dart';
 class AdminHomepage extends StatelessWidget {
   const AdminHomepage({super.key});
 
-  static const Color cream = Color(0xFFFEEFDD);
-  static const Color orange = Color(0xFFF87C4F);
-  static const Color navy = Color(0xFF252A5A);
 
   @override
   Widget build(BuildContext context) {
+    final _pc = context.pc;
+    final navy = _pc.ink;
+    final orange = _pc.accent;
+
     // read(), not watch() — we only need these controllers to hand us their
     // Streams below; we don't want this whole page rebuilding every time
     // e.g. isSaving flips on an unrelated screen sharing the same instance.
@@ -29,10 +31,7 @@ class AdminHomepage extends StatelessWidget {
     }
 
     return Scaffold(
-      backgroundColor: cream,
       appBar: AppBar(
-        backgroundColor: orange,
-        foregroundColor: Colors.white,
         title: const Text(
           'Admin Dashboard',
           style: TextStyle(
@@ -102,9 +101,12 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final _pc = context.pc;
+    final cardColor = _pc.card;
+    final mutedColor = _pc.muted;
+
     return Card(
-      elevation: 0,
-      color: Colors.white,
+      color: cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -149,7 +151,7 @@ class _StatCard extends StatelessWidget {
               ),
               if (onTap != null) ...[
                 const SizedBox(width: 4),
-                const Icon(Icons.chevron_right, color: Colors.black26),
+                Icon(Icons.chevron_right, color: mutedColor),
               ],
             ],
           ),

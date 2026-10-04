@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import 'student_homepage.dart';
@@ -5,7 +6,7 @@ import 'package:polaris_mobile_app/views/student/profile/student_profile.dart';
 import 'package:polaris_mobile_app/views/student/material/create_material.dart';
 import 'package:polaris_mobile_app/views/student/material/my_materials.dart';
 import 'package:polaris_mobile_app/views/student/discover/discover_page.dart';
-
+import 'package:polaris_mobile_app/services/theme_service.dart';
 
 class StudentNavBar extends StatefulWidget {
   const StudentNavBar({super.key});
@@ -15,10 +16,12 @@ class StudentNavBar extends StatefulWidget {
 }
 
 class _StudentNavBarState extends State<StudentNavBar> {
-  static const Color cream = Color(0xFFFCF6F0);
-  static const Color navy = Color(0xFF252A5A);
-  static const Color purple = Color(0xFF7B5EA7);
-  static const Color gold = Color(0xFFE8B94A);
+  Color get navy => context.pc.ink;
+  Color get cardColor => context.pc.card;
+  Color get mutedColor => context.pc.muted;
+
+  // The Create sparkles always use the palette's star gold.
+  static const Color _starGold = PolarisPalette.star;
 
   static const int _createTabIndex = 2;
 
@@ -78,7 +81,6 @@ class _StudentNavBarState extends State<StudentNavBar> {
         index: _selectedIndex,
         children: _screens,
       ),
-
       bottomNavigationBar: ClipRRect(
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(24),
@@ -86,78 +88,58 @@ class _StudentNavBarState extends State<StudentNavBar> {
         ),
         child: NavigationBarTheme(
           data: NavigationBarThemeData(
-            backgroundColor: const Color.fromARGB(255, 255, 246, 238),
-            indicatorColor: gold.withOpacity(0.2),
+            backgroundColor: cardColor,
+            indicatorColor: navy.withOpacity(0.12),
             indicatorShape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-
-            labelTextStyle:
-                WidgetStateProperty.resolveWith((states) {
-              final selected =
-                  states.contains(WidgetState.selected);
+            labelTextStyle: WidgetStateProperty.resolveWith((states) {
+              final selected = states.contains(WidgetState.selected);
 
               return TextStyle(
                 fontSize: 12,
-                fontWeight: selected
-                    ? FontWeight.bold
-                    : FontWeight.normal,
-                color: selected
-                    ? navy
-                    : Colors.black54,
+                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                color: selected ? navy : mutedColor,
               );
             }),
-
-            iconTheme:
-                WidgetStateProperty.resolveWith((states) {
-              final selected =
-                  states.contains(WidgetState.selected);
+            iconTheme: WidgetStateProperty.resolveWith((states) {
+              final selected = states.contains(WidgetState.selected);
 
               return IconThemeData(
-                color: selected
-                    ? navy
-                    : Colors.black54,
+                color: selected ? navy : mutedColor,
               );
             }),
           ),
-
           child: NavigationBar(
             selectedIndex: _navBarIndexFor(_selectedIndex),
             onDestinationSelected: _onDestinationSelected,
-
             destinations: const [
               NavigationDestination(
                 icon: Icon(Icons.home_outlined),
                 selectedIcon: Icon(Icons.home),
                 label: 'Home',
               ),
-
               NavigationDestination(
                 icon: Icon(Icons.explore_outlined),
                 selectedIcon: Icon(Icons.explore),
                 label: 'Discover',
               ),
-
               NavigationDestination(
                 icon: Icon(
-                  Icons.add_circle_outline,
-                  color: purple,
+                  CupertinoIcons.sparkles,
                   size: 36,
                 ),
                 selectedIcon: Icon(
-                  Icons.add_circle,
-                  color: purple,
+                  CupertinoIcons.sparkles,
                   size: 38,
                 ),
                 label: 'Create',
               ),
-
               NavigationDestination(
                 icon: Icon(Icons.folder_outlined),
                 selectedIcon: Icon(Icons.folder),
                 label: 'My Materials',
               ),
-
               NavigationDestination(
                 icon: Icon(Icons.person_outline),
                 selectedIcon: Icon(Icons.person),

@@ -6,6 +6,7 @@ import '/controllers/transaction_controller.dart';
 import '/models/material_model.dart';
 import '../material/document_viewer.dart';
 
+import 'package:polaris_mobile_app/services/theme_service.dart';
 /// Mock checkout flow for a public_paid material.
 /// Lives at lib/views/student/discover/checkout_page.dart, next to
 /// material_detail_page.dart.
@@ -32,10 +33,14 @@ class CheckoutPage extends StatefulWidget {
 }
 
 class _CheckoutPageState extends State<CheckoutPage> {
-  static const cream = Color(0xFFFCF6F0);
-  static const navy = Color(0xFF252A5A);
-  static const purple = Color(0xFF7B5EA7);
-  static const gold = Color(0xFFE8B94A);
+  Color get cream => context.pc.background;
+  Color get navy => context.pc.ink;
+  Color get purple => context.pc.accent;
+  Color get cardColor => context.pc.card;
+  Color get fieldColor => context.pc.field;
+  Color get goodColor => context.pc.success;
+  Color get badColor => context.pc.danger;
+
 
   static const List<String> _paymentMethods = ['GCash', 'Maya', 'Card'];
 
@@ -69,14 +74,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
     final currentUserId = authController.currentUserProfile?.userId;
 
     return Scaffold(
-      backgroundColor: cream,
       appBar: AppBar(
-        backgroundColor: cream,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: navy),
         title: Text(
           _purchased ? 'Receipt' : 'Checkout',
-          style: const TextStyle(color: navy, fontWeight: FontWeight.bold),
+          style: TextStyle(color: navy, fontWeight: FontWeight.bold),
         ),
         automaticallyImplyLeading: !_purchased,
       ),
@@ -96,7 +97,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       children: [
         _buildMaterialSummary(),
         const SizedBox(height: 20),
-        const Text('Payment method', style: TextStyle(fontWeight: FontWeight.bold, color: navy, fontSize: 15)),
+        Text('Payment method', style: TextStyle(fontWeight: FontWeight.bold, color: navy, fontSize: 15)),
         const SizedBox(height: 10),
         Wrap(
           spacing: 8,
@@ -106,8 +107,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     selected: _selectedMethod == m,
                     onSelected: (_) => setState(() => _selectedMethod = m),
                     selectedColor: purple,
-                    labelStyle: TextStyle(color: _selectedMethod == m ? Colors.white : navy),
-                    backgroundColor: Colors.white,
+                    labelStyle: TextStyle(color: _selectedMethod == m ? cream : navy),
+                    backgroundColor: fieldColor,
                   ))
               .toList(),
         ),
@@ -122,7 +123,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
         if (transactionController.errorMessage != null) ...[
           Text(
             transactionController.errorMessage!,
-            style: const TextStyle(color: Colors.redAccent, fontSize: 12.5),
+            style: TextStyle(color: badColor, fontSize: 12.5),
           ),
           const SizedBox(height: 10),
         ],
@@ -133,15 +134,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
             onPressed: currentUserId == null || !_detailsValid || transactionController.isPurchasing
                 ? null
                 : () => _handleBuy(currentUserId, transactionController),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: navy,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
             child: transactionController.isPurchasing
-                ? const SizedBox(
+                ? SizedBox(
                     width: 20, height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(strokeWidth: 2, color: cream),
                   )
                 : Text(currentUserId == null
                     ? 'Log in to purchase'
@@ -155,13 +151,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
   Widget _buildMaterialSummary() {
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+      decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(14)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             widget.material.title,
-            style: const TextStyle(fontWeight: FontWeight.bold, color: navy, fontSize: 15),
+            style: TextStyle(fontWeight: FontWeight.bold, color: navy, fontSize: 15),
           ),
           const SizedBox(height: 4),
           Text(
@@ -175,7 +171,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
               Text('Total', style: TextStyle(color: navy.withOpacity(0.7))),
               Text(
                 '₱${widget.material.price?.toStringAsFixed(2) ?? "0.00"}',
-                style: const TextStyle(color: navy, fontWeight: FontWeight.bold, fontSize: 16),
+                style: TextStyle(color: navy, fontWeight: FontWeight.bold, fontSize: 16),
               ),
             ],
           ),
@@ -218,9 +214,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
   InputDecoration _decoration(String label) {
     return InputDecoration(
       labelText: label,
-      filled: true,
-      fillColor: Colors.white,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     );
   }
@@ -253,11 +246,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
           children: [
             Container(
               padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(color: Colors.green.withOpacity(0.12), shape: BoxShape.circle),
-              child: const Icon(Icons.check, color: Colors.green, size: 32),
+              decoration: BoxDecoration(color: goodColor.withOpacity(0.12), shape: BoxShape.circle),
+              child: Icon(Icons.check, color: goodColor, size: 32),
             ),
             const SizedBox(height: 12),
-            const Text('Purchase successful', style: TextStyle(fontWeight: FontWeight.bold, color: navy, fontSize: 17)),
+            Text('Purchase successful', style: TextStyle(fontWeight: FontWeight.bold, color: navy, fontSize: 17)),
             const SizedBox(height: 4),
             Text(
               'Paid with $_selectedMethod',
@@ -275,7 +268,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
         ),
         if (widget.material.attachments.isNotEmpty) ...[
           const SizedBox(height: 20),
-          const Text('Open your files', style: TextStyle(fontWeight: FontWeight.bold, color: navy, fontSize: 15)),
+          Text('Open your files', style: TextStyle(fontWeight: FontWeight.bold, color: navy, fontSize: 15)),
           const SizedBox(height: 8),
           ...widget.material.attachments.map((a) => _buildAttachmentLink(a)),
         ],
@@ -285,11 +278,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
           height: 46,
           child: ElevatedButton(
             onPressed: () => Navigator.of(context).pop(),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: navy,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
             child: const Text('Done'),
           ),
         ),
@@ -303,15 +291,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
     final url = attachment['url'] as String?;
 
     return Card(
-      elevation: 0,
-      color: Colors.white,
+      color: cardColor,
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        leading: const Icon(Icons.insert_drive_file_outlined, color: purple),
+        leading: Icon(Icons.insert_drive_file_outlined, color: purple),
         title: Text(filename, maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text(format.toUpperCase()),
-        trailing: const Icon(Icons.open_in_new, size: 18, color: navy),
+        trailing: Icon(Icons.open_in_new, size: 18, color: navy),
         onTap: url == null
             ? null
             : () => DocumentViewer.open(context, fileUrl: url, format: format),

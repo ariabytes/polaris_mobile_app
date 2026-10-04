@@ -7,6 +7,7 @@ import '/models/material_model.dart';
 import '/models/user_model.dart';
 import 'material_detail_page.dart';
 
+import 'package:polaris_mobile_app/services/theme_service.dart';
 /// Discover tab — browse/search public materials (public_free + public_paid).
 /// Lives at lib/views/student/discover/discover_page.dart, alongside
 /// material_detail_page.dart and checkout_page.dart.
@@ -32,10 +33,11 @@ class DiscoverPage extends StatefulWidget {
 }
 
 class _DiscoverPageState extends State<DiscoverPage> {
-  static const cream = Color(0xFFFCF6F0);
-  static const navy = Color(0xFF252A5A);
-  static const purple = Color(0xFF7B5EA7);
-  static const gold = Color(0xFFE8B94A);
+  Color get cream => context.pc.background;
+  Color get navy => context.pc.ink;
+  Color get purple => context.pc.accent;
+  Color get fieldColor => context.pc.field;
+
 
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -83,11 +85,8 @@ class _DiscoverPageState extends State<DiscoverPage> {
     final stream = _resolveStream(materialController, profile, hasProfileScope);
 
     return Scaffold(
-      backgroundColor: cream,
       appBar: AppBar(
-        backgroundColor: cream,
-        elevation: 0,
-        title: const Text(
+        title: Text(
           'Discover',
           style: TextStyle(color: navy, fontWeight: FontWeight.bold),
         ),
@@ -101,7 +100,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
               stream: stream,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator(color: purple));
+                  return Center(child: CircularProgressIndicator(color: purple));
                 }
                 if (snapshot.hasError) {
                   return Center(
@@ -176,24 +175,18 @@ class _DiscoverPageState extends State<DiscoverPage> {
         onChanged: (value) => setState(() => _searchQuery = value),
         decoration: InputDecoration(
           hintText: 'Search university, course, professor, semester...',
-          prefixIcon: const Icon(Icons.search, color: purple),
+          prefixIcon: Icon(Icons.search, color: purple),
           suffixIcon: _searchQuery.isEmpty
               ? null
               : IconButton(
-                  icon: const Icon(Icons.close, color: navy),
+                  icon: Icon(Icons.close, color: navy),
                   onPressed: () {
                     _searchController.clear();
                     setState(() => _searchQuery = '');
                   },
                 ),
-          filled: true,
-          fillColor: Colors.white,
           contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide.none,
           ),
-        ),
       ),
     );
   }
@@ -248,9 +241,9 @@ class _DiscoverPageState extends State<DiscoverPage> {
             selected: selected,
             onSelected: (_) => setState(() => _selectedSchoolYear = year),
             selectedColor: purple,
-            backgroundColor: Colors.white,
-            labelStyle: TextStyle(color: selected ? Colors.white : navy, fontSize: 12.5),
-            side: BorderSide(color: purple.withOpacity(0.3)),
+            backgroundColor: fieldColor,
+            labelStyle: TextStyle(color: selected ? cream : navy, fontSize: 12.5),
+            side: BorderSide.none,
           );
         },
       ),
@@ -300,12 +293,16 @@ class _MaterialCard extends StatelessWidget {
 
   const _MaterialCard({required this.material});
 
-  static const navy = Color(0xFF252A5A);
-  static const purple = Color(0xFF7B5EA7);
-  static const gold = Color(0xFFE8B94A);
 
   @override
   Widget build(BuildContext context) {
+    final _pc = context.pc;
+    final navy = _pc.ink;
+    final purple = _pc.accent;
+    final gold = _pc.star;
+    final cardColor = _pc.card;
+    final goodColor = _pc.success;
+
     final coverUrl = material.coverImage?['url'] as String?;
     final isPaid = material.isPublicPaid;
 
@@ -320,12 +317,9 @@ class _MaterialCard extends StatelessWidget {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardColor,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(color: navy.withOpacity(0.06), blurRadius: 8, offset: const Offset(0, 3)),
-          ],
-        ),
+          ),
         clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -337,7 +331,7 @@ class _MaterialCard extends StatelessWidget {
                   : Container(
                       color: purple.withOpacity(0.08),
                       child: Icon(
-                        Icons.description_outlined,
+                        Icons.auto_awesome,
                         color: purple.withOpacity(0.4),
                         size: 32,
                       ),
@@ -352,7 +346,7 @@ class _MaterialCard extends StatelessWidget {
                     material.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w600,
                       color: navy,
                       fontSize: 13.5,
@@ -375,19 +369,19 @@ class _MaterialCard extends StatelessWidget {
                       ),
                       child: Text(
                         '₱${material.price?.toStringAsFixed(0) ?? "0"}',
-                        style: const TextStyle(color: navy, fontSize: 11, fontWeight: FontWeight.w700),
+                        style: TextStyle(color: navy, fontSize: 11, fontWeight: FontWeight.w700),
                       ),
                     )
                   else
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.12),
+                        color: goodColor.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Free',
-                        style: TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.w700),
+                        style: TextStyle(color: goodColor, fontSize: 11, fontWeight: FontWeight.w700),
                       ),
                     ),
                 ],

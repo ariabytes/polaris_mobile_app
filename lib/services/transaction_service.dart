@@ -1,22 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/transaction_model.dart';
 
-/// Talks to the `transactions` collection (and touches `materials` for the
-/// purchase_count bump). This is a MOCK payment flow — no real payment
-/// gateway, per the project scope. payment_method is just a label the
-/// buyer picked in the UI.
 class TransactionService {
-  static const double platformFeeRate = 0.10; // 10% platform / 90% creator
+  static const double platformFeeRate = 0.10; // 10% Platform Fee
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   CollectionReference<Map<String, dynamic>> get _transactions =>
       _db.collection('transactions');
 
-  /// Reads the material's current price, writes the transaction, and bumps
-  /// the material's purchase_count — all atomically via a Firestore
-  /// transaction, so a half-completed purchase can't happen.
-  /// Throws an Exception with a user-facing message on failure.
   Future<String> purchaseMaterial({
     required String materialId,
     required String buyerId,
@@ -66,18 +58,6 @@ class TransactionService {
     return transactionRef.id;
   }
 
-  /// Records a "save" of a public_free material — the free-tier equivalent
-  /// of purchaseMaterial, so free materials plug into the exact same
-  /// transaction log / hasPurchased / myPurchases machinery as paid ones
-  /// (no separate "saved materials" concept needed). No fee math applies —
-  /// price/fee/earnings all record as 0 — and payment_method is fixed to
-  /// 'Free' rather than a buyer-chosen method.
-  ///
-  /// NOTE: like purchaseMaterial, this doesn't stop a buyer from calling it
-  /// twice server-side (Firestore transactions can only get() individual
-  /// docs, not run a where() query, so there's no atomic "already saved"
-  /// check here). The UI guards against double-saves by hiding the Save
-  /// button once streamHasPurchased() reports true for this buyer/material.
   Future<String> saveFreeMaterial({
     required String materialId,
     required String buyerId,
@@ -123,8 +103,6 @@ class TransactionService {
   }
 
   // ---------- READS (Stream = real-time) ----------
-
-  /// Materials this user has bought (or saved, for free ones) — "My Purchases".
   Stream<List<TransactionModel>> streamPurchases(String buyerId) {
     return _transactions
         .where('buyer_id', isEqualTo: buyerId)
@@ -133,7 +111,6 @@ class TransactionService {
         .map((snap) => snap.docs.map((d) => TransactionModel.fromMap(d.id, d.data())).toList());
   }
 
-  /// Sales/earnings for a material owner — "My Sales" / earnings dashboard.
   Stream<List<TransactionModel>> streamSales(String sellerId) {
     return _transactions
         .where('seller_id', isEqualTo: sellerId)
@@ -142,9 +119,6 @@ class TransactionService {
         .map((snap) => snap.docs.map((d) => TransactionModel.fromMap(d.id, d.data())).toList());
   }
 
-  /// Whether this buyer already owns/saved this material — gates access to
-  /// a public_paid material's full content, and drives the Save/Saved
-  /// button state for public_free materials.
   Stream<bool> streamHasPurchased({required String buyerId, required String materialId}) {
     return _transactions
         .where('buyer_id', isEqualTo: buyerId)
@@ -154,10 +128,6 @@ class TransactionService {
         .map((snap) => snap.docs.isNotEmpty);
   }
 
-  /// EVERY transaction on the platform, unfiltered — admin only.
-  /// Firestore security rules must restrict this query to users whose
-  /// `users/{uid}.role == "admin"`; this client-side call has no gating
-  /// of its own.
   Stream<List<TransactionModel>> streamAllTransactions() {
     return _transactions
         .orderBy('purchased_at', descending: true)

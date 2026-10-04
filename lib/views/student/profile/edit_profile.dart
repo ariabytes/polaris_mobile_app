@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '/controllers/auth_controller.dart';
 
+import 'package:polaris_mobile_app/services/theme_service.dart';
 class EditProfileView extends StatefulWidget {
   const EditProfileView({super.key});
 
@@ -15,10 +16,11 @@ class EditProfileView extends StatefulWidget {
 }
 
 class _EditProfileViewState extends State<EditProfileView> {
-  static const Color cream = Color(0xFFFCF6F0);
-  static const Color navy = Color(0xFF252A5A);
-  static const Color purple = Color(0xFF7B5EA7);
-  static const Color gold = Color(0xFFE8B94A);
+  Color get cream => context.pc.background;
+  Color get navy => context.pc.ink;
+  Color get purple => context.pc.accent;
+  Color get mutedColor => context.pc.muted;
+
 
   static const List<String> _yearLevels = [
     '1st Year',
@@ -96,17 +98,7 @@ class _EditProfileViewState extends State<EditProfileView> {
           _selectedBirthday ?? DateTime(now.year - 18),
       firstDate: DateTime(1950),
       lastDate: now,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: navy,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
+      );
 
     if (picked != null && mounted) {
       setState(() {
@@ -254,11 +246,7 @@ class _EditProfileViewState extends State<EditProfileView> {
             as String?;
 
     return Scaffold(
-      backgroundColor: cream,
-
       appBar: AppBar(
-        backgroundColor: navy,
-        foregroundColor: Colors.white,
         title: const Text(
           'Edit Profile',
           style: TextStyle(
@@ -299,7 +287,7 @@ class _EditProfileViewState extends State<EditProfileView> {
                     child:
                         _pickedPhoto == null &&
                                 currentPhotoUrl == null
-                            ? const Icon(
+                            ? Icon(
                                 Icons.person,
                                 size: 54,
                                 color: navy,
@@ -308,7 +296,7 @@ class _EditProfileViewState extends State<EditProfileView> {
                   ),
 
                   if (_uploadingPhoto)
-                    const Positioned.fill(
+                    Positioned.fill(
                       child: Center(
                         child: CircularProgressIndicator(
                           color: navy,
@@ -319,14 +307,14 @@ class _EditProfileViewState extends State<EditProfileView> {
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration:
-                          const BoxDecoration(
+                          BoxDecoration(
                         color: navy,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.camera_alt,
                         size: 16,
-                        color: Colors.white,
+                        color: cream,
                       ),
                     ),
                 ],
@@ -365,8 +353,8 @@ class _EditProfileViewState extends State<EditProfileView> {
                     : 'Select your birthday',
                 style: TextStyle(
                   color: _selectedBirthday != null
-                      ? Colors.black87
-                      : Colors.black38,
+                      ? navy
+                      : mutedColor,
                 ),
               ),
             ),
@@ -475,22 +463,14 @@ class _EditProfileViewState extends State<EditProfileView> {
                   auth.isLoading || _uploadingPhoto
                       ? null
                       : _save,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: navy,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.circular(14),
-                ),
-              ),
               child: auth.isLoading
-                  ? const SizedBox(
+                  ? SizedBox(
                       height: 22,
                       width: 22,
                       child:
                           CircularProgressIndicator(
                         strokeWidth: 2.5,
-                        color: Colors.white,
+                        color: cream,
                       ),
                     )
                   : const Text(
@@ -515,11 +495,6 @@ class _EditProfileViewState extends State<EditProfileView> {
   }) {
     return InputDecoration(
       hintText: hint,
-      filled: true,
-      fillColor: Colors.white,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
       contentPadding:
           const EdgeInsets.symmetric(
         horizontal: 14,
@@ -540,14 +515,17 @@ class _FieldLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final _pc = context.pc;
+    final mutedColor = _pc.muted;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
           fontWeight: FontWeight.w600,
           fontSize: 13,
-          color: Colors.black54,
+          color: mutedColor,
         ),
       ),
     );

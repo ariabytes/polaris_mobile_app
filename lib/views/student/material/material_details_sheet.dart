@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '/controllers/material_controller.dart';
 import '/models/material_model.dart';
+
+import 'package:polaris_mobile_app/services/theme_service.dart';
 
 class MaterialDetailsSheet extends StatefulWidget {
   const MaterialDetailsSheet({
@@ -10,12 +15,10 @@ class MaterialDetailsSheet extends StatefulWidget {
     this.existingMaterial,
   });
 
-  // Used by CREATE mode
   final String? initialUniversity;
   final String? initialCollege;
   final String? initialProgram;
 
-  // Used by EDIT DETAILS mode
   final MaterialModel? existingMaterial;
 
   bool get isEditing => existingMaterial != null;
@@ -25,8 +28,9 @@ class MaterialDetailsSheet extends StatefulWidget {
 }
 
 class _MaterialDetailsSheetState extends State<MaterialDetailsSheet> {
-  static const Color cream = Color(0xFFFCF6F0);
-  static const Color navy = Color(0xFF252A5A);
+  Color get navy => context.pc.ink;
+  Color get cardColor => context.pc.card;
+  Color get mutedColor => context.pc.muted;
 
   late final TextEditingController _universityController;
   late final TextEditingController _collegeController;
@@ -36,8 +40,16 @@ class _MaterialDetailsSheetState extends State<MaterialDetailsSheet> {
   late final TextEditingController _professorController;
   late final TextEditingController _priceController;
 
+  final FocusNode _universityFocus = FocusNode();
+  final FocusNode _courseFocus = FocusNode();
+  final FocusNode _professorFocus = FocusNode();
+
   String? _semester;
   String _visibility = 'private';
+
+  // course name -> professors who have taught/used it at this university
+  Map<String, List<String>> _suggestions = {};
+  String? _loadedUniversity;
 
   static const List<String> _semesters = [
     '1st Semester',
@@ -52,25 +64,15 @@ class _MaterialDetailsSheetState extends State<MaterialDetailsSheet> {
     final material = widget.existingMaterial;
 
     if (material != null) {
-      // EDIT MODE
       _universityController =
           TextEditingController(text: material.university);
-
-      _collegeController =
-          TextEditingController(text: material.college);
-
-      _programController =
-          TextEditingController(text: material.program);
-
-      _courseController =
-          TextEditingController(text: material.course);
-
+      _collegeController = TextEditingController(text: material.college);
+      _programController = TextEditingController(text: material.program);
+      _courseController = TextEditingController(text: material.course);
       _schoolYearController =
           TextEditingController(text: material.schoolYear);
-
       _professorController =
           TextEditingController(text: material.professor ?? '');
-
       _priceController = TextEditingController(
         text: material.price?.toStringAsFixed(2) ?? '',
       );
@@ -78,21 +80,23 @@ class _MaterialDetailsSheetState extends State<MaterialDetailsSheet> {
       _semester = material.semester;
       _visibility = material.visibility;
     } else {
-      // CREATE MODE
       _universityController =
           TextEditingController(text: widget.initialUniversity ?? '');
-
       _collegeController =
           TextEditingController(text: widget.initialCollege ?? '');
-
       _programController =
           TextEditingController(text: widget.initialProgram ?? '');
-
       _courseController = TextEditingController();
       _schoolYearController = TextEditingController();
       _professorController = TextEditingController();
       _priceController = TextEditingController();
     }
+
+    _universityFocus.addListener(() {
+      if (!_universityFocus.hasFocus) _loadSuggestions();
+    });
+
+    _loadSuggestions();
   }
 
   @override
@@ -104,8 +108,84 @@ class _MaterialDetailsSheetState extends State<MaterialDetailsSheet> {
     _schoolYearController.dispose();
     _professorController.dispose();
     _priceController.dispose();
-
+    _universityFocus.dispose();
+    _courseFocus.dispose();
+    _professorFocus.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadSuggestions() async {
+    final university = _universityController.text.trim();
+    if (university.isEmpty || university == _loadedUniversity) return;
+
+    _loadedUniversity = university;
+
+    final data =
+        await context.read<MaterialController>().courseSuggestions(university);
+
+    if (!mounted) return;
+    setState(() => _suggestions = data);
+  }
+
+  List<String> _courseOptions(String text) {
+    final query = text.trim().toLowerCase();
+
+    final matches = _suggestions.keys.where((course) {
+      final lower = course.toLowerCase();
+      return lower != query && (query.isEmpty || lower.contains(query));
+    }).toList()
+      ..sort();
+
+    return matches.take(8).toList();
+  }
+
+  List<String> _professorOptions(String text) {
+    final query = text.trim().toLowerCase();
+    final course = _courseController.text.trim().toLowerCase();
+
+    final matchedCourse = _suggestions.keys.where(
+      (c) => c.toLowerCase() == course,
+    );
+
+    final pool = matchedCourse.isNotEmpty
+        ? _suggestions[matchedCourse.first]!
+        : _suggestions.values.expand((p) => p).toSet().toList();
+
+    final matches = pool.where((prof) {
+      final lower = prof.toLowerCase();
+      return lower != query && (query.isEmpty || lower.contains(query));
+    }).toList()
+      ..sort();
+
+    return matches.take(8).toList();
+  }
+
+  Future<void> _pickSchoolYear() async {
+    FocusScope.of(context).unfocus();
+
+    final now = DateTime.now();
+    final currentStart =
+        int.tryParse(_schoolYearController.text.split('-').first) ?? now.year;
+
+    final picked = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('School year starts'),
+        content: SizedBox(
+          width: 300,
+          height: 300,
+          child: YearPicker(
+            firstDate: DateTime(now.year - 10),
+            lastDate: DateTime(now.year + 1),
+            selectedDate: DateTime(currentStart),
+            onChanged: (date) => Navigator.of(dialogContext).pop(date.year),
+          ),
+        ),
+      ),
+    );
+
+    if (picked == null) return;
+    setState(() => _schoolYearController.text = '$picked-${picked + 1}');
   }
 
   void _confirm() {
@@ -141,8 +221,6 @@ class _MaterialDetailsSheetState extends State<MaterialDetailsSheet> {
       'semester': _semester!,
       'schoolYear': _schoolYearController.text.trim(),
       'professor': _professorController.text.trim(),
-
-      // These are important for EDIT DETAILS.
       'visibility': _visibility,
       'price': _priceController.text.trim(),
     });
@@ -155,9 +233,9 @@ class _MaterialDetailsSheetState extends State<MaterialDetailsSheet> {
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       child: Container(
-        decoration: const BoxDecoration(
-          color: cream,
-          borderRadius: BorderRadius.vertical(
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: const BorderRadius.vertical(
             top: Radius.circular(24),
           ),
         ),
@@ -178,168 +256,117 @@ class _MaterialDetailsSheetState extends State<MaterialDetailsSheet> {
                   ),
                 ),
               ),
-
               Text(
                 widget.isEditing
                     ? 'Edit Material Details'
                     : 'Just a few more details',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: navy,
                 ),
               ),
-
               const SizedBox(height: 4),
-
               Text(
                 widget.isEditing
                     ? 'Update the information used to organize and find this material.'
                     : 'This helps other students find this material.',
-                style: const TextStyle(
-                  color: Colors.black54,
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: mutedColor, fontSize: 13),
               ),
-
               const SizedBox(height: 18),
-
               TextField(
                 controller: _universityController,
+                focusNode: _universityFocus,
                 decoration: _decoration('University'),
               ),
-
               const SizedBox(height: 12),
-
               TextField(
                 controller: _collegeController,
                 decoration: _decoration('Department / College'),
               ),
-
               const SizedBox(height: 12),
-
               TextField(
                 controller: _programController,
-                decoration: _decoration(
-                  'Program (e.g. BS Information Technology)',
-                ),
+                decoration: _decoration('Program'),
               ),
-
               const SizedBox(height: 12),
-
-              TextField(
+              _SuggestField(
                 controller: _courseController,
-                decoration: _decoration(
-                  'Course / Subject (e.g. Data Structures and Algorithms)',
-                ),
+                focusNode: _courseFocus,
+                decoration: _decoration('Course / Subject'),
+                optionsFor: _courseOptions,
               ),
-
               const SizedBox(height: 12),
-
               DropdownButtonFormField<String>(
                 initialValue: _semester,
                 decoration: _decoration('Semester'),
                 items: _semesters
-                    .map(
-                      (s) => DropdownMenuItem(
-                        value: s,
-                        child: Text(s),
-                      ),
-                    )
+                    .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                     .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _semester = value;
-                  });
-                },
+                onChanged: (value) => setState(() => _semester = value),
               ),
-
               const SizedBox(height: 12),
-
               TextField(
                 controller: _schoolYearController,
-                decoration: _decoration(
-                  'School Year (e.g. 2025-2026)',
+                readOnly: true,
+                onTap: _pickSchoolYear,
+                decoration: _decoration('School Year').copyWith(
+                  suffixIcon: const Icon(
+                    Icons.calendar_today_outlined,
+                    size: 18,
+                  ),
                 ),
               ),
-
               const SizedBox(height: 12),
-
-              TextField(
+              _SuggestField(
                 controller: _professorController,
-                decoration: _decoration(
-                  'Professor (optional)',
-                ),
+                focusNode: _professorFocus,
+                decoration: _decoration('Professor (optional)'),
+                optionsFor: _professorOptions,
               ),
-
               const SizedBox(height: 18),
-
-              const Text(
+              Text(
                 'Visibility',
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
-                  color: Colors.black54,
+                  color: mutedColor,
                   fontSize: 13,
                 ),
               ),
-
               const SizedBox(height: 8),
-
               _VisibilityChips(
                 value: _visibility,
                 onChanged: (value) {
                   setState(() {
                     _visibility = value;
-
-                    // Clear price when material is no longer paid.
                     if (value != 'public_paid') {
                       _priceController.clear();
                     }
                   });
                 },
               ),
-
               if (_visibility == 'public_paid') ...[
                 const SizedBox(height: 12),
-
                 TextField(
                   controller: _priceController,
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     prefixText: '₱ ',
                     labelText: 'Price',
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
                   ),
                 ),
               ],
-
               const SizedBox(height: 20),
-
               SizedBox(
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
                   onPressed: _confirm,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: navy,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
                   child: Text(
-                    widget.isEditing
-                        ? 'Save Details'
-                        : 'Confirm & Save',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    widget.isEditing ? 'Save Details' : 'Confirm & Save',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -353,15 +380,84 @@ class _MaterialDetailsSheetState extends State<MaterialDetailsSheet> {
   InputDecoration _decoration(String label) {
     return InputDecoration(
       labelText: label,
-      filled: true,
-      fillColor: Colors.white,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
       contentPadding: const EdgeInsets.symmetric(
         horizontal: 14,
         vertical: 12,
       ),
+    );
+  }
+}
+
+class _SuggestField extends StatelessWidget {
+  const _SuggestField({
+    required this.controller,
+    required this.focusNode,
+    required this.decoration,
+    required this.optionsFor,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final InputDecoration decoration;
+  final List<String> Function(String text) optionsFor;
+
+  @override
+  Widget build(BuildContext context) {
+    final pc = context.pc;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return RawAutocomplete<String>(
+          textEditingController: controller,
+          focusNode: focusNode,
+          optionsBuilder: (value) => optionsFor(value.text),
+          fieldViewBuilder: (context, textController, node, onSubmitted) {
+            return TextField(
+              controller: textController,
+              focusNode: node,
+              decoration: decoration,
+            );
+          },
+          optionsViewBuilder: (context, onSelected, options) {
+            return Align(
+              alignment: Alignment.topLeft,
+              child: Material(
+                elevation: 4,
+                color: pc.field,
+                borderRadius: BorderRadius.circular(12),
+                clipBehavior: Clip.antiAlias,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: constraints.maxWidth,
+                    maxHeight: 200,
+                  ),
+                  child: ListView.builder(
+                    padding: EdgeInsets.zero,
+                    shrinkWrap: true,
+                    itemCount: options.length,
+                    itemBuilder: (context, index) {
+                      final option = options.elementAt(index);
+                      return InkWell(
+                        onTap: () => onSelected(option),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          child: Text(
+                            option,
+                            style: TextStyle(color: pc.ink),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -375,10 +471,10 @@ class _VisibilityChips extends StatelessWidget {
   final String value;
   final ValueChanged<String> onChanged;
 
-  static const Color navy = Color(0xFF252A5A);
-
   @override
   Widget build(BuildContext context) {
+    final pc = context.pc;
+
     const options = {
       'private': 'Private',
       'public_free': 'Public (Free)',
@@ -395,14 +491,12 @@ class _VisibilityChips extends StatelessWidget {
           label: Text(entry.value),
           selected: selected,
           onSelected: (_) => onChanged(entry.key),
-          selectedColor: navy,
+          selectedColor: pc.accent,
           labelStyle: TextStyle(
-            color: selected ? Colors.white : navy,
+            color: selected ? pc.background : pc.ink,
           ),
-          backgroundColor: Colors.white,
-          side: BorderSide(
-            color: navy.withOpacity(0.4),
-          ),
+          backgroundColor: pc.field,
+          side: BorderSide.none,
         );
       }).toList(),
     );

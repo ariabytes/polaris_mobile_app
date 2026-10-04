@@ -6,11 +6,10 @@ import '../../../controllers/transaction_controller.dart';
 import '../../../models/transaction_model.dart';
 import '../../../models/user_model.dart';
 
+import 'package:polaris_mobile_app/services/theme_service.dart';
 class AdminTransactionsView extends StatelessWidget {
   const AdminTransactionsView({super.key});
 
-  static const Color cream = Color(0xFFFEEFDD);
-  static const Color orange = Color(0xFFF87C4F);
 
   @override
   Widget build(BuildContext context) {
@@ -18,10 +17,7 @@ class AdminTransactionsView extends StatelessWidget {
     final transactionController = context.read<TransactionController>();
 
     return Scaffold(
-      backgroundColor: cream,
       appBar: AppBar(
-        backgroundColor: orange,
-        foregroundColor: Colors.white,
         title: const Text('Transactions', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
       // Nested StreamBuilder: outer resolves buyer/seller names from the
@@ -73,7 +69,6 @@ class _TransactionTile extends StatelessWidget {
   final TransactionModel transaction;
   final Map<String, UserModel> usersById;
 
-  static const Color navy = Color(0xFF252A5A);
 
   String _nameFor(String uid) => usersById[uid]?.name ?? uid;
 
@@ -91,12 +86,18 @@ class _TransactionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final _pc = context.pc;
+    final navy = _pc.ink;
+    final gold = _pc.star;
+    final cardColor = _pc.card;
+    final mutedColor = _pc.muted;
+    final goodColor = _pc.success;
+
     final isFree = transaction.paymentMethod == 'Free';
     final isCompleted = transaction.status == 'completed';
 
     return Card(
-      elevation: 0,
-      color: Colors.white,
+      color: cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -118,7 +119,7 @@ class _TransactionTile extends StatelessWidget {
                   isFree ? 'Free' : '₱${transaction.materialPrice.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: isFree ? Colors.grey.shade600 : navy,
+                    color: isFree ? mutedColor : navy,
                   ),
                 ),
               ],
@@ -126,7 +127,7 @@ class _TransactionTile extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               _formatDate(transaction.purchasedAt),
-              style: const TextStyle(fontSize: 12, color: Colors.black54),
+              style: TextStyle(fontSize: 12, color: mutedColor),
             ),
             const SizedBox(height: 8),
             Wrap(
@@ -137,25 +138,25 @@ class _TransactionTile extends StatelessWidget {
                   label: Text(transaction.status),
                   visualDensity: VisualDensity.compact,
                   backgroundColor: isCompleted
-                      ? Colors.green.withOpacity(0.12)
-                      : Colors.orange.withOpacity(0.12),
+                      ? goodColor.withOpacity(0.12)
+                      : gold.withOpacity(0.12),
                   labelStyle: TextStyle(
                     fontSize: 12,
-                    color: isCompleted ? Colors.green.shade800 : Colors.orange.shade800,
+                    color: isCompleted ? goodColor : gold,
                   ),
                 ),
                 Chip(
                   label: Text(transaction.paymentMethod),
                   visualDensity: VisualDensity.compact,
                   backgroundColor: navy.withOpacity(0.08),
-                  labelStyle: const TextStyle(fontSize: 12, color: navy),
+                  labelStyle: TextStyle(fontSize: 12, color: navy),
                 ),
                 if (!isFree)
                   Chip(
                     label: Text('Fee ₱${transaction.platformFee.toStringAsFixed(2)}'),
                     visualDensity: VisualDensity.compact,
-                    backgroundColor: Colors.grey.withOpacity(0.12),
-                    labelStyle: const TextStyle(fontSize: 12, color: Colors.black87),
+                    backgroundColor: mutedColor.withOpacity(0.12),
+                    labelStyle: TextStyle(fontSize: 12, color: navy),
                   ),
               ],
             ),

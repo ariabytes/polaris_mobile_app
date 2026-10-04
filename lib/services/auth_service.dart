@@ -5,6 +5,12 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import '../models/user_model.dart';
 
 class AuthService {
+  static const String googleCancelled = 'google_cancelled';
+
+  static const String unverifiedMessage =
+      'Please verify your email before logging in. '
+      'Check your spam folder, or tap "Resend verification email" below.';
+
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
@@ -19,111 +25,165 @@ class AuthService {
     _googleInitialized = true;
   }
 
-  // EMAIL/PASSWORD SIGN IN & verification
   Future<String?> signIn({
     required String email,
     required String password,
   }) async {
     try {
       final credential = await _firebaseAuth.signInWithEmailAndPassword(
-        email: email,
+        email: email.trim(),
         password: password,
       );
 
       final user = credential.user;
+      if (user == null) return 'Login failed. Please try again.';
 
-      if (user != null && !user.emailVerified) {
+      if (!user.emailVerified) {
         await _firebaseAuth.signOut();
-        return 'Please verify your email before logging in.';
+        return unverifiedMessage;
       }
 
+      await _ensureUserDocument(user);
       return null;
     } on FirebaseAuthException catch (e) {
       return _mapAuthError(e);
+    } catch (_) {
+      return 'Something went wrong. Please try again.';
     }
   }
 
-  // EMAIL/PASSWORD REGISTER 
   Future<String?> register({
     required String name,
     required String email,
     required String password,
   }) async {
     try {
-      final credential =
-          await _firebaseAuth.createUserWithEmailAndPassword(
-        email: email,
+      final credential = await _firebaseAuth.createUserWithEmailAndPassword(
+        email: email.trim(),
         password: password,
       );
 
       final user = credential.user;
-
       if (user != null) {
-        await user.updateDisplayName(name);
+        await user.updateDisplayName(name.trim());
 
         await _createUserDocument(
           uid: user.uid,
-          name: name,
-          email: email,
+          name: name.trim(),
+          email: email.trim(),
         );
 
-        await user.sendEmailVerification();
+        try {
+          await user.sendEmailVerification();
+        } catch (_) {
+        }
       }
 
       return null;
     } on FirebaseAuthException catch (e) {
       return _mapAuthError(e);
+    } catch (_) {
+      return 'Could not create your account. Please try again.';
     }
   }
 
-  // GOOGLE SIGN IN 
+  Future<String?> resendVerificationEmail({
+    required String email,
+    required String password,
+  }) async {
+    var signedInHere = false;
+    try {
+      final credential = await _firebaseAuth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+      signedInHere = true;
+
+      final user = credential.user;
+      if (user == null) {
+        return 'Could not send the email. Please try again.';
+      }
+
+      if (user.emailVerified) {
+        return 'This email is already verified. You can log in now.';
+      }
+
+      await user.sendEmailVerification();
+      return null;
+    } on FirebaseAuthException catch (e) {
+      return _mapAuthError(e);
+    } catch (_) {
+      return 'Could not send the email. Please try again.';
+    } finally {
+      if (signedInHere) {
+        try {
+          await _firebaseAuth.signOut();
+        } catch (_) {}
+      }
+    }
+  }
+
   Future<String?> signInWithGoogle() async {
     try {
       UserCredential userCredential;
 
       if (kIsWeb) {
-        final googleProvider = GoogleAuthProvider();
-        userCredential = await _firebaseAuth.signInWithPopup(googleProvider);
+        userCredential =
+            await _firebaseAuth.signInWithPopup(GoogleAuthProvider());
       } else {
         await initGoogleSignIn();
         if (!_googleSignIn.supportsAuthenticate()) {
           return 'Google Sign-In is not supported on this device.';
         }
         final googleUser = await _googleSignIn.authenticate();
-        final googleAuth = googleUser.authentication;
-        final credential = GoogleAuthProvider.credential(idToken: googleAuth.idToken);
-        userCredential = await _firebaseAuth.signInWithCredential(credential);
+        final idToken = googleUser.authentication.idToken;
+        if (idToken == null) {
+          return 'Google Sign-In failed. Please try again.';
+        }
+        userCredential = await _firebaseAuth.signInWithCredential(
+          GoogleAuthProvider.credential(idToken: idToken),
+        );
       }
 
       final user = userCredential.user;
-      if (user != null && userCredential.additionalUserInfo?.isNewUser == true) {
-        await _createUserDocument(
-          uid: user.uid,
-          name: user.displayName ?? 'Student',
-          email: user.email ?? '',
-        );
+      if (user != null) {
+        await _ensureUserDocument(user);
       }
+      return null;
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        return googleCancelled;
+      }
+      return 'Google Sign-In failed. Please try again.';
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'popup-closed-by-user' ||
+          e.code == 'cancelled-popup-request') {
+        return googleCancelled;
+      }
+      return _mapAuthError(e);
+    } catch (_) {
+      return 'Google Sign-In failed. Please try again.';
+    }
+  }
+
+  Future<String?> sendPasswordResetEmail(String email) async {
+    try {
+      await _firebaseAuth.sendPasswordResetEmail(email: email.trim());
       return null;
     } on FirebaseAuthException catch (e) {
       return _mapAuthError(e);
     } catch (_) {
-      return null;
-    }
-  }
-
-  // FORGOT PASSWORD 
-  Future<String?> sendPasswordResetEmail(String email) async {
-    try {
-      await _firebaseAuth.sendPasswordResetEmail(email: email);
-      return null;
-    } on FirebaseAuthException catch (e) {
-      return _mapAuthError(e);
+      return 'Something went wrong. Please try again.';
     }
   }
 
   Future<void> signOut() async {
-    if (!kIsWeb) {
-      await _googleSignIn.signOut();
+    try {
+      if (!kIsWeb) {
+        await initGoogleSignIn(); 
+        await _googleSignIn.signOut();
+      }
+    } catch (_) {
     }
     await _firebaseAuth.signOut();
   }
@@ -134,7 +194,6 @@ class AuthService {
     return UserModel.fromMap(doc.id, doc.data()!);
   }
 
-  // AuthService
   Stream<UserModel?> streamUserData(String uid) {
     return _db.collection('users').doc(uid).snapshots().map((doc) {
       if (!doc.exists || doc.data() == null) return null;
@@ -147,26 +206,45 @@ class AuthService {
         .collection('users')
         .orderBy('created_at', descending: true)
         .snapshots()
-        .map((snap) => snap.docs.map((d) => UserModel.fromMap(d.id, d.data())).toList());
+        .map((snap) =>
+            snap.docs.map((d) => UserModel.fromMap(d.id, d.data())).toList());
   }
 
-  // ADMIN
   Future<void> deleteUserDocument(String uid) async {
     await _db.collection('users').doc(uid).delete();
   }
 
-  Future<void> updateProfilePhoto(String uid, Map<String, dynamic> profilePhoto) async {
+  Future<void> updateProfilePhoto(
+    String uid,
+    Map<String, dynamic> profilePhoto,
+  ) async {
     await _db.collection('users').doc(uid).update({
       'profile_photo': profilePhoto,
       'updated_at': FieldValue.serverTimestamp(),
     });
   }
 
-  Future<void> updateUserProfile(String uid, Map<String, dynamic> data) async {
+  Future<void> updateUserProfile(
+    String uid,
+    Map<String, dynamic> data,
+  ) async {
     await _db.collection('users').doc(uid).update({
       ...data,
       'updated_at': FieldValue.serverTimestamp(),
     });
+  }
+
+  Future<void> _ensureUserDocument(User user) async {
+    final ref = _db.collection('users').doc(user.uid);
+    final snap = await ref.get();
+    if (snap.exists) return;
+
+    final displayName = user.displayName?.trim() ?? '';
+    await _createUserDocument(
+      uid: user.uid,
+      name: displayName.isNotEmpty ? displayName : 'Student',
+      email: user.email ?? '',
+    );
   }
 
   Future<void> _createUserDocument({
@@ -188,6 +266,8 @@ class AuthService {
     switch (e.code) {
       case 'invalid-email':
         return 'That email address looks invalid.';
+      case 'missing-email':
+        return 'Please enter your email.';
       case 'user-disabled':
         return 'This account has been disabled.';
       case 'user-not-found':
@@ -203,6 +283,10 @@ class AuthService {
         return 'No internet connection. Check your network and try again.';
       case 'too-many-requests':
         return 'Too many attempts. Please try again later.';
+      case 'operation-not-allowed':
+        return 'This sign-in method is not enabled.';
+      case 'account-exists-with-different-credential':
+        return 'An account already exists with a different sign-in method.';
       default:
         return e.message ?? 'Something went wrong. Please try again.';
     }
