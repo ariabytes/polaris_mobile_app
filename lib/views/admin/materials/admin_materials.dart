@@ -196,8 +196,9 @@ class _MaterialCard extends StatelessWidget {
         content: Text(
           'This permanently deletes "${material.title}" from Firestore.\n\n'
           'Its cover image and attachments stay in Cloudinary (not '
-          'auto-deleted), and any past purchases of it will show as '
-          '"no longer available" instead of losing their price/date history.',
+          'auto-deleted). Anyone who bought or saved it will lose access and '
+          'see "no longer available", but their transaction records '
+          '(price/date) are kept.',
         ),
         actions: [
           TextButton(

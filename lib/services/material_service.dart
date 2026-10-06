@@ -136,6 +136,52 @@ class MaterialService {
     return false;
   }
 
+  /// university -> college -> programs, built from public materials, so the
+  /// profile form can suggest values other students already use.
+  Future<Map<String, Map<String, List<String>>>>
+      fetchAcademicSuggestions() async {
+    final snap = await _materials
+        .where('status', isEqualTo: 'active')
+        .where('visibility', whereIn: ['public_free', 'public_paid'])
+        .limit(500)
+        .get();
+
+    // Lowercase keys merge spelling variants ("BS IT" / "bs it").
+    final universityNames = <String, String>{};
+    final collegeNames = <String, Map<String, String>>{};
+    final programNames = <String, Map<String, String>>{};
+
+    for (final doc in snap.docs) {
+      final data = doc.data();
+      final university = (data['university'] as String? ?? '').trim();
+      final college = (data['college'] as String? ?? '').trim();
+      final program = (data['program'] as String? ?? '').trim();
+      if (university.isEmpty) continue;
+
+      final uKey = university.toLowerCase();
+      universityNames.putIfAbsent(uKey, () => university);
+      final colleges = collegeNames.putIfAbsent(uKey, () => {});
+
+      if (college.isEmpty) continue;
+      final cKey = college.toLowerCase();
+      colleges.putIfAbsent(cKey, () => college);
+      final programs = programNames.putIfAbsent('$uKey|$cKey', () => {});
+
+      if (program.isNotEmpty) {
+        programs.putIfAbsent(program.toLowerCase(), () => program);
+      }
+    }
+
+    return {
+      for (final uKey in universityNames.keys)
+        universityNames[uKey]!: {
+          for (final cKey in collegeNames[uKey]!.keys)
+            collegeNames[uKey]![cKey]!:
+                programNames['$uKey|$cKey']?.values.toList() ?? <String>[],
+        },
+    };
+  }
+
   Future<Map<String, List<String>>> fetchCourseSuggestions(String university) async {
     final snap = await _materials
         .where('university', isEqualTo: university)

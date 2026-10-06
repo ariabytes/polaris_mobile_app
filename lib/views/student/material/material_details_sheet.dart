@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 
 import '/controllers/material_controller.dart';
 import '/models/material_model.dart';
+import '/services/transaction_service.dart';
 
 import 'package:polaris_mobile_app/services/theme_service.dart';
+import 'package:polaris_mobile_app/views/widgets/suggest_field.dart';
 
 class MaterialDetailsSheet extends StatefulWidget {
   const MaterialDetailsSheet({
@@ -290,7 +292,7 @@ class _MaterialDetailsSheetState extends State<MaterialDetailsSheet> {
                 decoration: _decoration('Program'),
               ),
               const SizedBox(height: 12),
-              _SuggestField(
+              SuggestField(
                 controller: _courseController,
                 focusNode: _courseFocus,
                 decoration: _decoration('Course / Subject'),
@@ -318,7 +320,7 @@ class _MaterialDetailsSheetState extends State<MaterialDetailsSheet> {
                 ),
               ),
               const SizedBox(height: 12),
-              _SuggestField(
+              SuggestField(
                 controller: _professorController,
                 focusNode: _professorFocus,
                 decoration: _decoration('Professor (optional)'),
@@ -352,11 +354,14 @@ class _MaterialDetailsSheetState extends State<MaterialDetailsSheet> {
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
+                  onChanged: (_) => setState(() {}),
                   decoration: const InputDecoration(
                     prefixText: '₱ ',
                     labelText: 'Price',
                   ),
                 ),
+                const SizedBox(height: 10),
+                _buildEarningsNote(),
               ],
               const SizedBox(height: 20),
               SizedBox(
@@ -377,6 +382,46 @@ class _MaterialDetailsSheetState extends State<MaterialDetailsSheet> {
     );
   }
 
+  /// Tells the seller how a paid sale is split. Uses the same rate as
+  /// TransactionService so the note can never drift from the real fee.
+  Widget _buildEarningsNote() {
+    final pc = context.pc;
+    final rate = TransactionService.platformFeeRate;
+    final percent = (rate * 100).round();
+
+    final price = double.tryParse(_priceController.text.trim());
+    final hasPrice = price != null && price > 0;
+
+    final fee = hasPrice ? double.parse((price * rate).toStringAsFixed(2)) : 0.0;
+    final earnings = hasPrice ? double.parse((price - fee).toStringAsFixed(2)) : 0.0;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: pc.field,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, size: 18, color: pc.accent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              hasPrice
+                  ? 'Polaris keeps $percent% (₱${fee.toStringAsFixed(2)}) of each sale. '
+                      'You receive ₱${earnings.toStringAsFixed(2)}.'
+                  : 'Polaris keeps $percent% of each sale as a platform fee. '
+                      'The rest is yours.',
+              style: TextStyle(color: pc.muted, fontSize: 12.5),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   InputDecoration _decoration(String label) {
     return InputDecoration(
       labelText: label,
@@ -384,80 +429,6 @@ class _MaterialDetailsSheetState extends State<MaterialDetailsSheet> {
         horizontal: 14,
         vertical: 12,
       ),
-    );
-  }
-}
-
-class _SuggestField extends StatelessWidget {
-  const _SuggestField({
-    required this.controller,
-    required this.focusNode,
-    required this.decoration,
-    required this.optionsFor,
-  });
-
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final InputDecoration decoration;
-  final List<String> Function(String text) optionsFor;
-
-  @override
-  Widget build(BuildContext context) {
-    final pc = context.pc;
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return RawAutocomplete<String>(
-          textEditingController: controller,
-          focusNode: focusNode,
-          optionsBuilder: (value) => optionsFor(value.text),
-          fieldViewBuilder: (context, textController, node, onSubmitted) {
-            return TextField(
-              controller: textController,
-              focusNode: node,
-              decoration: decoration,
-            );
-          },
-          optionsViewBuilder: (context, onSelected, options) {
-            return Align(
-              alignment: Alignment.topLeft,
-              child: Material(
-                elevation: 4,
-                color: pc.field,
-                borderRadius: BorderRadius.circular(12),
-                clipBehavior: Clip.antiAlias,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: constraints.maxWidth,
-                    maxHeight: 200,
-                  ),
-                  child: ListView.builder(
-                    padding: EdgeInsets.zero,
-                    shrinkWrap: true,
-                    itemCount: options.length,
-                    itemBuilder: (context, index) {
-                      final option = options.elementAt(index);
-                      return InkWell(
-                        onTap: () => onSelected(option),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 12,
-                          ),
-                          child: Text(
-                            option,
-                            style: TextStyle(color: pc.ink),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
     );
   }
 }

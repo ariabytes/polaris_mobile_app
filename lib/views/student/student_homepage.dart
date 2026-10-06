@@ -235,7 +235,10 @@ class _PurchasedMaterialsGrid extends StatelessWidget {
           );
         }
 
-        final purchases = (snapshot.data ?? []).take(_homeLimit).toList();
+        final purchases = (snapshot.data ?? [])
+            .where((t) => !t.hiddenByBuyer)
+            .take(_homeLimit)
+            .toList();
 
         if (purchases.isEmpty) {
           return const _EmptyRow(
@@ -261,11 +264,19 @@ class _PurchasedMaterialsGrid extends StatelessWidget {
                 final m = matSnap.data;
 
                 if (m == null) {
-                  return const _MaterialCard(
+                  return _MaterialCard(
                     title: 'No longer available',
-                    subtitle: null,
+                    subtitle: 'Removed from Polaris',
                     coverUrl: null,
                     trailingLabel: null,
+                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'This material is no longer available. '
+                          'You can remove it from My Materials.',
+                        ),
+                      ),
+                    ),
                   );
                 }
 

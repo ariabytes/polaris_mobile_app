@@ -230,6 +230,15 @@ class MaterialController extends ChangeNotifier {
     }
   }
 
+  /// university -> college -> programs, for the profile form's suggestions.
+  Future<Map<String, Map<String, List<String>>>> academicSuggestions() async {
+    try {
+      return await _service.fetchAcademicSuggestions();
+    } catch (_) {
+      return {};
+    }
+  }
+
   void registerView(String materialId) {
     _service.incrementViewCount(materialId);
   }

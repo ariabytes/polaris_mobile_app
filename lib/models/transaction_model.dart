@@ -11,6 +11,7 @@ class TransactionModel {
   final String paymentMethod; // "Maya" | "GCash" | "Card"
   final String status; // "completed"
   final DateTime? purchasedAt;
+  final bool hiddenByBuyer; // buyer removed it from their library
 
   TransactionModel({
     required this.transactionId,
@@ -23,6 +24,7 @@ class TransactionModel {
     required this.paymentMethod,
     this.status = 'completed',
     this.purchasedAt,
+    this.hiddenByBuyer = false,
   });
 
   factory TransactionModel.fromMap(String docId, Map<String, dynamic> data) {
@@ -37,6 +39,7 @@ class TransactionModel {
       paymentMethod: data['payment_method'] ?? '',
       status: data['status'] ?? 'completed',
       purchasedAt: (data['purchased_at'] as Timestamp?)?.toDate(),
+      hiddenByBuyer: data['hidden_by_buyer'] == true,
     );
   }
 
@@ -51,6 +54,7 @@ class TransactionModel {
       'seller_earnings': sellerEarnings,
       'payment_method': paymentMethod,
       'status': status,
+      'hidden_by_buyer': hiddenByBuyer,
       'purchased_at':
           purchasedAt != null ? Timestamp.fromDate(purchasedAt!) : FieldValue.serverTimestamp(),
     };

@@ -5,8 +5,11 @@ import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '/controllers/auth_controller.dart';
+import '/controllers/material_controller.dart';
 
 import 'package:polaris_mobile_app/services/theme_service.dart';
+import 'package:polaris_mobile_app/views/widgets/suggest_field.dart';
+
 class EditProfileView extends StatefulWidget {
   const EditProfileView({super.key});
 
@@ -35,6 +38,13 @@ class _EditProfileViewState extends State<EditProfileView> {
   late final TextEditingController _collegeController;
   late final TextEditingController _programController;
   late final TextEditingController _bioController;
+
+  final FocusNode _universityFocus = FocusNode();
+  final FocusNode _collegeFocus = FocusNode();
+  final FocusNode _programFocus = FocusNode();
+
+  // university -> college -> programs, learned from public materials
+  Map<String, Map<String, List<String>>> _suggestions = {};
 
   String? _selectedYearLevel;
   DateTime? _selectedBirthday;
@@ -72,6 +82,8 @@ class _EditProfileViewState extends State<EditProfileView> {
 
     _selectedYearLevel = profile?.yearLevel;
     _selectedBirthday = profile?.birthday;
+
+    _loadSuggestions();
   }
 
   @override
@@ -81,8 +93,77 @@ class _EditProfileViewState extends State<EditProfileView> {
     _collegeController.dispose();
     _programController.dispose();
     _bioController.dispose();
+    _universityFocus.dispose();
+    _collegeFocus.dispose();
+    _programFocus.dispose();
 
     super.dispose();
+  }
+
+  // SUGGESTIONS (university -> college -> program)
+  Future<void> _loadSuggestions() async {
+    final data =
+        await context.read<MaterialController>().academicSuggestions();
+
+    if (!mounted) return;
+    setState(() => _suggestions = data);
+  }
+
+  List<String> _filter(Iterable<String> pool, String text) {
+    final query = text.trim().toLowerCase();
+
+    final matches = pool.toSet().where((option) {
+      final lower = option.toLowerCase();
+      return lower != query && (query.isEmpty || lower.contains(query));
+    }).toList()
+      ..sort();
+
+    return matches.take(8).toList();
+  }
+
+  /// Colleges of the university typed so far, or null if it isn't known.
+  Map<String, List<String>>? _collegesOf(String university) {
+    final key = university.trim().toLowerCase();
+
+    for (final entry in _suggestions.entries) {
+      if (entry.key.toLowerCase() == key) return entry.value;
+    }
+    return null;
+  }
+
+  List<String> _universityOptions(String text) =>
+      _filter(_suggestions.keys, text);
+
+  // Narrowed to the chosen university; if it's unknown, suggest from all.
+  List<String> _collegeOptions(String text) {
+    final colleges = _collegesOf(_universityController.text);
+    final Iterable<String> pool =
+        colleges?.keys ?? _suggestions.values.expand((c) => c.keys);
+
+    return _filter(pool, text);
+  }
+
+  // Narrowed to the chosen college (and university) when they're known.
+  List<String> _programOptions(String text) {
+    final colleges = _collegesOf(_universityController.text);
+    final collegeKey = _collegeController.text.trim().toLowerCase();
+
+    final Iterable<String> pool;
+    if (colleges != null) {
+      final matched = colleges.entries
+          .where((e) => e.key.toLowerCase() == collegeKey)
+          .toList();
+
+      pool = matched.isNotEmpty
+          ? matched.first.value
+          : colleges.values.expand((p) => p);
+    } else {
+      pool = _suggestions.values
+          .expand((c) => c.values)
+          .expand((p) => p);
+    }
+
+    return _filter(pool, text);
   }
 
   // BIRTHDAY
@@ -343,8 +424,10 @@ class _EditProfileViewState extends State<EditProfileView> {
           // UNIVERSITY
           const _FieldLabel('University'),
 
-          TextField(
+          SuggestField(
             controller: _universityController,
+            focusNode: _universityFocus,
+            optionsFor: _universityOptions,
             decoration: _inputDecoration(
               hint: 'e.g. University of Mindanao',
             ),
@@ -355,8 +438,10 @@ class _EditProfileViewState extends State<EditProfileView> {
           // COLLEGE
           const _FieldLabel('Department / College'),
 
-          TextField(
+          SuggestField(
             controller: _collegeController,
+            focusNode: _collegeFocus,
+            optionsFor: _collegeOptions,
             decoration: _inputDecoration(
               hint: 'e.g. College of Computing Education',
             ),
@@ -367,8 +452,10 @@ class _EditProfileViewState extends State<EditProfileView> {
           // COURSE
           const _FieldLabel('Program'),
 
-          TextField(
+          SuggestField(
             controller: _programController,
+            focusNode: _programFocus,
+            optionsFor: _programOptions,
             decoration: _inputDecoration(
               hint: 'e.g. BS Information Technology',
             ),

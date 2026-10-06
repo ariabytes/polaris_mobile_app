@@ -91,6 +91,7 @@ class TransactionService {
         'seller_earnings': sellerEarnings,
         'payment_method': paymentMethod,
         'status': 'completed',
+        'hidden_by_buyer': false,
         'purchased_at': FieldValue.serverTimestamp(),
       });
 
@@ -124,6 +125,23 @@ class TransactionService {
         .where('status', isEqualTo: 'completed')
         .snapshots()
         .map((snap) => snap.docs.isNotEmpty);
+  }
+
+  /// One transaction by its id (<buyerId>_<materialId>); null if none exists.
+  Stream<TransactionModel?> streamTransaction({
+    required String buyerId,
+    required String materialId,
+  }) {
+    return _transactions.doc('${buyerId}_$materialId').snapshots().map((doc) {
+      final data = doc.data();
+      if (!doc.exists || data == null) return null;
+      return TransactionModel.fromMap(doc.id, data);
+    });
+  }
+
+  /// Hides / un-hides a purchase in the buyer's library. 
+  Future<void> setHiddenByBuyer(String transactionId, bool hidden) {
+    return _transactions.doc(transactionId).update({'hidden_by_buyer': hidden});
   }
 
   Stream<List<TransactionModel>> streamAllTransactions() {

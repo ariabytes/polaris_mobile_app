@@ -20,13 +20,17 @@ const List<String> _semesters = ['1st Semester', '2nd Semester', 'Summer'];
 class _Entry {
   const _Entry(this.material, [this.transaction]);
 
-  final MaterialModel material;
+  /// A purchase/save whose material was deleted.
+  const _Entry.unavailable(TransactionModel this.transaction) : material = null;
+
+  final MaterialModel? material;
   final TransactionModel? transaction;
 
   bool get purchased => transaction != null;
+  bool get unavailable => material == null;
 
   DateTime get date =>
-      (purchased ? transaction!.purchasedAt : material.createdAt) ??
+      (purchased ? transaction!.purchasedAt : material?.createdAt) ??
       DateTime.now();
 }
 
@@ -203,9 +207,13 @@ class _MyMaterialsViewState extends State<MyMaterialsView> {
     final entries = <_Entry>[];
 
     for (final t in _transactions) {
+      if (t.hiddenByBuyer) continue;
+      // Missing from the map = still loading; null in the map = deleted.
+      if (!_purchasedMaterials.containsKey(t.materialId)) continue;
+      if (!seen.add(t.materialId)) continue;
+
       final m = _purchasedMaterials[t.materialId];
-      if (m == null || !seen.add(t.materialId)) continue;
-      entries.add(_Entry(m, t));
+      entries.add(m == null ? _Entry.unavailable(t) : _Entry(m, t));
     }
 
     return entries;
@@ -226,8 +234,12 @@ class _MyMaterialsViewState extends State<MyMaterialsView> {
       entries.addAll(_purchasedEntries());
     }
 
+    final hasFilters = _advanced.isActive || _query.isNotEmpty;
+
     return entries
-        .where((e) => _matchesAdvanced(e.material) && _matchesSearch(e.material))
+        .where((e) => e.unavailable
+            ? !hasFilters
+            : _matchesAdvanced(e.material!) && _matchesSearch(e.material!))
         .toList()
       ..sort((a, b) => b.date.compareTo(a.date));
   }
@@ -235,7 +247,9 @@ class _MyMaterialsViewState extends State<MyMaterialsView> {
   List<String> _availableSchoolYears() {
     final years = <String>{
       ..._owned.map((m) => m.schoolYear),
-      ..._purchasedEntries().map((e) => e.material.schoolYear),
+      ..._purchasedEntries()
+          .where((e) => !e.unavailable)
+          .map((e) => e.material!.schoolYear),
     }..removeWhere((y) => y.isEmpty);
 
     return years.toList()..sort((a, b) => b.compareTo(a));
@@ -385,7 +399,12 @@ class _MyMaterialsViewState extends State<MyMaterialsView> {
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
       itemCount: entries.length,
-      itemBuilder: (context, index) => _MaterialCard(entry: entries[index]),
+      itemBuilder: (context, index) {
+        final entry = entries[index];
+        return entry.unavailable
+            ? _UnavailableCard(transaction: entry.transaction!)
+            : _MaterialCard(entry: entry);
+      },
     );
   }
 
@@ -682,7 +701,7 @@ class _MaterialCard extends StatelessWidget {
 
   final _Entry entry;
 
-  MaterialModel get material => entry.material;
+  MaterialModel get material => entry.material!;
 
   String get _statusLabel {
     if (entry.purchased) {
@@ -901,6 +920,51 @@ class _MaterialCard extends StatelessWidget {
     );
   }
 
+  Future<void> _removeFromLibrary(BuildContext context) async {
+    final paid = entry.transaction!.materialPrice > 0;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Remove from your library?'),
+        content: Text(
+          '"${material.title}" will disappear from My Materials and Home. '
+          '${paid ? "You won\'t be charged again if you add it back. " : ""}'
+          'To get it back, open it from Discover and tap '
+          '"Add back to My Materials".',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text('Remove', style: TextStyle(color: context.pc.danger)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    final ok = await context
+        .read<TransactionController>()
+        .hideFromLibrary(entry.transaction!.transactionId);
+
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'Removed from your library.'
+              : 'Could not remove it. Please try again.',
+        ),
+      ),
+    );
+  }
+
   Widget _buildThumbnail({
     required Color tint,
     required IconData icon,
@@ -1036,6 +1100,25 @@ class _MaterialCard extends StatelessWidget {
                   ],
                 ),
               ),
+              if (entry.purchased)
+                PopupMenuButton<String>(
+                  icon: Icon(Icons.more_vert, color: mutedColor),
+                  onSelected: (value) {
+                    if (value == 'remove') _removeFromLibrary(context);
+                  },
+                  itemBuilder: (_) => [
+                    PopupMenuItem(
+                      value: 'remove',
+                      child: Row(
+                        children: [
+                          Icon(Icons.bookmark_remove_outlined, color: navy),
+                          const SizedBox(width: 10),
+                          const Text('Remove from my library'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               if (!entry.purchased)
                 PopupMenuButton<String>(
                   icon: Icon(Icons.more_vert, color: mutedColor),
@@ -1087,6 +1170,119 @@ class _MaterialCard extends StatelessWidget {
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A bought/saved material whose document no longer exists (deleted by an
+/// admin). The transaction record is kept; the buyer can clear the entry.
+class _UnavailableCard extends StatelessWidget {
+  const _UnavailableCard({required this.transaction});
+
+  final TransactionModel transaction;
+
+  Future<void> _remove(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Remove from your library?'),
+        content: const Text(
+          'This material is no longer available. Removing it only clears it '
+          'from your list. Your purchase record is kept.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text('Remove', style: TextStyle(color: context.pc.danger)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    final ok = await context
+        .read<TransactionController>()
+        .hideFromLibrary(transaction.transactionId);
+
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'Removed from your library.'
+              : 'Could not remove it. Please try again.',
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pc = context.pc;
+    final paid = transaction.materialPrice > 0;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                width: 84,
+                height: 84,
+                color: pc.muted.withOpacity(0.15),
+                child: Icon(Icons.folder_off_outlined, color: pc.muted, size: 28),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'No longer available',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: pc.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'This material was removed from Polaris.',
+                    style: TextStyle(color: pc.muted, fontSize: 12),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    paid
+                        ? 'Purchased · ₱${transaction.materialPrice.toStringAsFixed(0)}'
+                        : 'Saved',
+                    style: TextStyle(
+                      color: pc.star,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: 'Remove from my library',
+              icon: Icon(Icons.delete_outline, color: pc.danger),
+              onPressed: () => _remove(context),
+            ),
+          ],
         ),
       ),
     );

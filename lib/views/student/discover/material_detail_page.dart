@@ -8,6 +8,7 @@ import '/controllers/auth_controller.dart';
 import '/controllers/material_controller.dart';
 import '/controllers/transaction_controller.dart';
 import '/models/material_model.dart';
+import '/models/transaction_model.dart';
 import '../material/document_viewer.dart';
 import '../material/material_details_sheet.dart';
 import 'checkout_page.dart';
@@ -84,18 +85,21 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
             );
           }
 
-          return StreamBuilder<bool>(
-            stream: transactionController.hasPurchased(
+          return StreamBuilder<TransactionModel?>(
+            stream: transactionController.myTransaction(
               buyerId: currentUserId,
               materialId: material.materialId,
             ),
             builder: (context, txnSnap) {
-              final hasTransacted = txnSnap.data ?? false;
+              final transaction = txnSnap.data;
+              final hasTransacted =
+                  transaction != null && transaction.status == 'completed';
 
               return _buildScaffoldBody(
                 material: material,
                 isOwner: isOwner,
                 hasTransacted: hasTransacted,
+                transaction: transaction,
                 currentUserId: currentUserId,
                 materialController: materialController,
                 transactionController: transactionController,
@@ -113,6 +117,7 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
     required MaterialModel material,
     required bool isOwner,
     required bool hasTransacted,
+    TransactionModel? transaction,
     required String? currentUserId,
     required MaterialController materialController,
     required TransactionController transactionController,
@@ -200,7 +205,11 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
                 if (!canAccess)
                   _buildPurchaseGate(material)
                 else ...[
-                  if (!isOwner && material.isPublicFree)
+                  if (!isOwner &&
+                      transaction != null &&
+                      transaction.hiddenByBuyer)
+                    _buildRestoreSection(transaction)
+                  else if (!isOwner && material.isPublicFree)
                     _buildSaveSection(
                       material,
                       currentUserId,
@@ -446,6 +455,44 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
                   ? goodColor
                   : navy.withOpacity(0.4),
             ),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // RESTORE (bought/saved material the buyer removed from their library) ----
+
+  Widget _buildRestoreSection(TransactionModel transaction) {
+    final transactionController = context.read<TransactionController>();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: () async {
+            final ok = await transactionController
+                .restoreToLibrary(transaction.transactionId);
+
+            if (!mounted) return;
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  ok
+                      ? 'Added back to My Materials.'
+                      : 'Could not add this back. Please try again.',
+                ),
+              ),
+            );
+          },
+          icon: const Icon(Icons.bookmark_add_outlined),
+          label: const Text('Add back to My Materials'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: navy,
+            side: BorderSide(color: navy.withOpacity(0.4)),
             padding: const EdgeInsets.symmetric(vertical: 12),
           ),
         ),

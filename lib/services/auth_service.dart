@@ -45,7 +45,7 @@ class AuthService {
         return unverifiedMessage;
       }
 
-      await _ensureUserDocument(user);
+      await ensureUserDocument(user);
       return null;
     } on FirebaseAuthException catch (e) {
       return _mapAuthError(e);
@@ -151,7 +151,7 @@ class AuthService {
 
       final user = userCredential.user;
       if (user != null) {
-        await _ensureUserDocument(user);
+        await ensureUserDocument(user);
       }
       return null;
     } on GoogleSignInException catch (e) {
@@ -214,8 +214,39 @@ class AuthService {
             snap.docs.map((d) => UserModel.fromMap(d.id, d.data())).toList());
   }
 
+  // Admin only. Removes the user's profile and cleans up their materials.
   Future<void> deleteUserDocument(String uid) async {
-    await _db.collection('users').doc(uid).delete();
+    final sales = await _db
+        .collection('transactions')
+        .where('seller_id', isEqualTo: uid)
+        .get();
+
+    final soldMaterialIds = <String>{
+      for (final t in sales.docs)
+        if ((t.data()['material_id'] as String? ?? '').isNotEmpty)
+          t.data()['material_id'] as String,
+    };
+
+    final owned = await _db
+        .collection('materials')
+        .where('owner_id', isEqualTo: uid)
+        .get();
+
+    final batch = _db.batch();
+
+    for (final doc in owned.docs) {
+      if (soldMaterialIds.contains(doc.id)) {
+        batch.update(doc.reference, {
+          'status': 'removed',
+          'updated_at': FieldValue.serverTimestamp(),
+        });
+      } else {
+        batch.delete(doc.reference);
+      }
+    }
+
+    batch.delete(_db.collection('users').doc(uid));
+    await batch.commit();
   }
 
   Future<void> updateProfilePhoto(
@@ -255,7 +286,7 @@ class AuthService {
     });
   }
 
-  Future<void> _ensureUserDocument(User user) async {
+  Future<void> ensureUserDocument(User user) async {
     final ref = _db.collection('users').doc(user.uid);
     final snap = await ref.get();
     if (snap.exists) return;

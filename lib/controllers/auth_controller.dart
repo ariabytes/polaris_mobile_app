@@ -65,7 +65,11 @@ class AuthController extends ChangeNotifier {
     }
 
     try {
-      final profile = await _authService.getUserData(firebaseUser.uid);
+      var profile = await _authService.getUserData(firebaseUser.uid);
+      if (profile == null) {
+        await _authService.ensureUserDocument(firebaseUser);
+        profile = await _authService.getUserData(firebaseUser.uid);
+      }
       if (_authService.currentUser?.uid != firebaseUser.uid) return;
       _currentUserProfile = profile;
     } catch (_) {

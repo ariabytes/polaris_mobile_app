@@ -56,10 +56,15 @@ class _UserTile extends StatelessWidget {
       builder: (context) => AlertDialog(
         title: const Text('Delete this user?'),
         content: Text(
-          'This permanently deletes ${user.name}\'s profile from Firestore.\n\n'
+          'This permanently deletes ${user.name}\'s profile and their materials '
+          'from Firestore. Materials that other students already bought or '
+          'saved stay available to those buyers. All transaction records are '
+          'kept, so their purchase history and earnings total come back if '
+          'they sign in again.\n\n'
           'Note: their login account itself is not deleted — that requires '
-          'a Cloud Function this app doesn\'t have yet, so they could still '
-          'sign in afterwards.',
+          'a Cloud Function this app doesn\'t have yet. They can still log in '
+          '(they can\'t register again with the same email) and will get a '
+          'blank student profile.',
         ),
         actions: [
           TextButton(
@@ -93,30 +98,108 @@ class _UserTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final _pc = context.pc;
-    final navy = _pc.ink;
-    final cardColor = _pc.card;
-    final badColor = _pc.danger;
+    final pc = context.pc;
 
     final photoUrl = user.profilePhoto?['url'] as String?;
+    final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
+
+    final name = user.name.trim().isNotEmpty ? user.name.trim() : 'Unnamed user';
+
+    final school = [user.university, user.program]
+        .where((s) => s != null && s.trim().isNotEmpty)
+        .map((s) => s!.trim())
+        .join(' · ');
+
+    final roleColor = user.isAdmin ? pc.star : pc.accent;
 
     return Card(
-      color: cardColor,
+      color: pc.card,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: navy.withOpacity(0.1),
-          backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
-          child: photoUrl == null
-              ? Text(user.name.isNotEmpty ? user.name[0].toUpperCase() : '?')
-              : null,
-        ),
-        title: Text(user.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text('${user.email}\n${user.role}'),
-        isThreeLine: true,
-        trailing: IconButton(
-          icon: Icon(Icons.delete_outline, color: badColor),
-          onPressed: () => _confirmDelete(context),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            CircleAvatar(
+              radius: 24,
+              backgroundColor: pc.ink.withOpacity(0.1),
+              backgroundImage: hasPhoto ? NetworkImage(photoUrl) : null,
+              child: hasPhoto
+                  ? null
+                  : Text(
+                      name[0].toUpperCase(),
+                      style: TextStyle(
+                        color: pc.ink,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                            color: pc.ink,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: roleColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          user.role,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: roleColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    user.email,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12.5, color: pc.muted),
+                  ),
+                  if (school.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      school,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 12, color: pc.muted),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: 'Delete user',
+              icon: Icon(Icons.delete_outline, color: pc.danger),
+              onPressed: () => _confirmDelete(context),
+            ),
+          ],
         ),
       ),
     );

@@ -19,6 +19,12 @@ class TransactionController extends ChangeNotifier {
 
   Stream<List<TransactionModel>> mySales(String sellerId) => _service.streamSales(sellerId);
 
+  Stream<TransactionModel?> myTransaction({
+    required String buyerId,
+    required String materialId,
+  }) =>
+      _service.streamTransaction(buyerId: buyerId, materialId: materialId);
+
   Stream<bool> hasPurchased({required String buyerId, required String materialId}) =>
       _service.streamHasPurchased(buyerId: buyerId, materialId: materialId);
 
@@ -81,6 +87,23 @@ class TransactionController extends ChangeNotifier {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
       _isPurchasing = false;
       notifyListeners();
+      return false;
+    }
+  }
+
+  /// Removes a bought/saved material from the buyer's library (soft hide).
+  Future<bool> hideFromLibrary(String transactionId) =>
+      _setHidden(transactionId, true);
+
+  /// Puts a hidden material back into the buyer's library.
+  Future<bool> restoreToLibrary(String transactionId) =>
+      _setHidden(transactionId, false);
+
+  Future<bool> _setHidden(String transactionId, bool hidden) async {
+    try {
+      await _service.setHiddenByBuyer(transactionId, hidden);
+      return true;
+    } catch (_) {
       return false;
     }
   }
