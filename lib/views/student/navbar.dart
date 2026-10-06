@@ -20,9 +20,6 @@ class _StudentNavBarState extends State<StudentNavBar> {
   Color get cardColor => context.pc.card;
   Color get mutedColor => context.pc.muted;
 
-  // The Create sparkles always use the palette's star gold.
-  static const Color _starGold = PolarisPalette.star;
-
   static const int _createTabIndex = 2;
 
   int _selectedIndex = 0;

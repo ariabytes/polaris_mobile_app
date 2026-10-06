@@ -6,8 +6,6 @@ import 'package:polaris_mobile_app/controllers/auth_controller.dart';
 import 'package:polaris_mobile_app/services/theme_service.dart';
 import 'register_page.dart';
 
-/// Login screen. It only collects input and shows messages;
-/// validation and the resend cooldown live in AuthController.
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 

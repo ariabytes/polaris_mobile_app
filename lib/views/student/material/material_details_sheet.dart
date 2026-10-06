@@ -47,7 +47,7 @@ class _MaterialDetailsSheetState extends State<MaterialDetailsSheet> {
   String? _semester;
   String _visibility = 'private';
 
-  // course name -> professors who have taught/used it at this university
+  // course name give professors who have taught/used it at this university
   Map<String, List<String>> _suggestions = {};
   String? _loadedUniversity;
 

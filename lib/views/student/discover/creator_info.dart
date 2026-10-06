@@ -6,11 +6,6 @@ import '/models/user_model.dart';
 
 import 'package:polaris_mobile_app/services/theme_service.dart';
 
-/// Shows a material creator's profile photo, name and (optionally) program.
-/// Lives at lib/views/student/discover/creator_info.dart.
-///
-/// The user stream is created once per owner (not on every rebuild), so
-/// scrolling or typing in a parent screen doesn't resubscribe to Firestore.
 class CreatorInfo extends StatefulWidget {
   const CreatorInfo({
     super.key,

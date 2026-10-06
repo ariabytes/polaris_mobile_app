@@ -102,7 +102,6 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-/// Shared grid delegate so both sections line up the same way.
 const _gridDelegate = SliverGridDelegateWithFixedCrossAxisCount(
   crossAxisCount: 2,
   crossAxisSpacing: 12,
@@ -132,9 +131,6 @@ class _MyMaterialsGrid extends StatelessWidget {
         }
 
         if (snapshot.hasError) {
-          // Likely cause: missing Firestore composite index for
-          // materials(owner_id, created_at). Check the debug console for a
-          // "FAILED_PRECONDITION" error with a link to create it.
           return const _EmptyRow(
             icon: Icons.error_outline,
             message: 'Could not load your materials right now.',
@@ -187,8 +183,6 @@ class _PurchasedMaterialsGrid extends StatelessWidget {
   const _PurchasedMaterialsGrid({required this.buyerId});
   final String buyerId;
 
-  /// File materials -> preview sheet. Text (String) materials -> read-only
-  /// viewer (the buyer can read it but not edit it).
   void _openPurchased(BuildContext context, MaterialModel m) {
     if (m.attachments.isNotEmpty) {
       MaterialPreviewSheet.show(context, m);

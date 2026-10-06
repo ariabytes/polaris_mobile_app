@@ -20,10 +20,6 @@ class AdminTransactionsView extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Transactions', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
-      // Nested StreamBuilder: outer resolves buyer/seller names from the
-      // users list, inner streams the transactions themselves. If the
-      // users stream hasn't emitted yet, usersById is just empty and tiles
-      // fall back to showing raw IDs until it catches up.
       body: StreamBuilder<List<UserModel>>(
         stream: authController.allUsers(),
         builder: (context, usersSnapshot) {

@@ -14,7 +14,7 @@ class TransactionController extends ChangeNotifier {
   bool get isPurchasing => _isPurchasing;
   String? get errorMessage => _errorMessage;
 
-  // ---------- READS ----------
+  // READS ----------
   Stream<List<TransactionModel>> myPurchases(String buyerId) => _service.streamPurchases(buyerId);
 
   Stream<List<TransactionModel>> mySales(String sellerId) => _service.streamSales(sellerId);
@@ -28,7 +28,7 @@ class TransactionController extends ChangeNotifier {
     );
   }
 
-  // ---------- ADMIN-ONLY ----------
+  // ADMIN-ONLY ----------
   Stream<List<TransactionModel>> allTransactions() => _service.streamAllTransactions();
 
   Stream<double> totalPlatformEarnings() {
@@ -37,7 +37,7 @@ class TransactionController extends ChangeNotifier {
     );
   }
 
-  // ---------- WRITE ----------
+  // WRITE ----------
   Future<bool> purchaseMaterial({
     required String materialId,
     required String buyerId,

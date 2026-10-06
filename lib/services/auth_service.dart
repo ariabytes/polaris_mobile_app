@@ -19,12 +19,14 @@ class AuthService {
   Stream<User?> get authStateChanges => _firebaseAuth.authStateChanges();
   User? get currentUser => _firebaseAuth.currentUser;
 
+  // INITIALIZE GOOGLE SIGN IN
   Future<void> initGoogleSignIn() async {
     if (_googleInitialized) return;
     await _googleSignIn.initialize();
     _googleInitialized = true;
   }
 
+  // Sign in with Email & Password
   Future<String?> signIn({
     required String email,
     required String password,
@@ -52,6 +54,7 @@ class AuthService {
     }
   }
 
+  // Creates user account and sends verification emailism
   Future<String?> register({
     required String name,
     required String email,
@@ -123,6 +126,7 @@ class AuthService {
     }
   }
 
+  // Google pop-up for sign in
   Future<String?> signInWithGoogle() async {
     try {
       UserCredential userCredential;

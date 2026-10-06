@@ -5,7 +5,7 @@ import '../models/material_model.dart';
 import '../services/material_service.dart';
 import '../services/storage_service.dart';
 
-/// The details collected by MaterialDetailsSheet, cleaned and validated.
+/// The details collected by MaterialDetailsSheet
 class _Details {
   const _Details({
     required this.university,
@@ -30,8 +30,7 @@ class _Details {
   final double? price;
 }
 
-/// Handles everything about study materials: reading, creating, editing,
-/// uploading files, and deleting.
+// Handles everything about study materials: reading, creating, editing, uploading files, and deleting.
 class MaterialController extends ChangeNotifier {
   static const Set<String> _imageExtensions = {'jpg', 'jpeg', 'png', 'gif', 'webp'};
   static const String _fileMaterialPlaceholder =
@@ -48,7 +47,7 @@ class MaterialController extends ChangeNotifier {
   bool get isSaving => _isSaving;
   String? get errorMessage => _errorMessage;
 
-  // ---------- READS ----------
+  //  READS ----------
   Stream<List<MaterialModel>> myMaterials(String ownerId) => _service.streamMyMaterials(ownerId);
 
   Stream<List<MaterialModel>> publicMaterials({String? program, String? course, String? university}) =>
@@ -56,15 +55,11 @@ class MaterialController extends ChangeNotifier {
 
   Stream<MaterialModel?> material(String materialId) => _service.streamMaterial(materialId);
 
-  /// Whether the current user may read this material's content and files.
   bool canAccess(MaterialModel material, String? currentUserId, bool hasPurchased) =>
       _service.canAccessContent(material, currentUserId, hasPurchased);
 
-  // ---------- CREATE ----------
-
-  /// Creates a text (Markdown) material. [details] is the map returned by
-  /// MaterialDetailsSheet. The cover is uploaded first, so a failed upload
-  /// never leaves a half-created material.
+  //  CREATE ----------
+  /// Creates a text (Markdown) material. 
   Future<String?> createTextMaterial({
     required String ownerId,
     required String title,
@@ -107,8 +102,7 @@ class MaterialController extends ChangeNotifier {
     }
   }
 
-  /// Creates a material from an uploaded file (pdf, docx, image...).
-  /// The file is uploaded first; the material is only created if that works.
+  // Material from uploaded file or attachment. file is uploaded first before creating a material record if its uploaded correctly
   Future<String?> createFileMaterial({
     required String ownerId,
     required String title,
@@ -159,9 +153,7 @@ class MaterialController extends ChangeNotifier {
     }
   }
 
-  // ---------- UPDATE ----------
-
-  /// Replaces a material's cover image.
+  //  UPDATE ----------
   Future<bool> uploadCoverImage(String materialId, File file, String originalFilename) async {
     _startSaving();
     try {
@@ -214,9 +206,9 @@ class MaterialController extends ChangeNotifier {
     }
   }
 
-  // ---------- DELETE ----------
+  //  DELETE ----------
 
-  /// Soft delete: the material is hidden but past transactions still reference it.
+  /// Soft delete for students - the material is hidden but past transactions still reference it.
   Future<bool> removeMaterial(String materialId) async {
     _startSaving();
     try {
@@ -229,7 +221,7 @@ class MaterialController extends ChangeNotifier {
     }
   }
 
-  // ---------- MISC ----------
+  // MISC ----------
   Future<Map<String, List<String>>> courseSuggestions(String university) async {
     try {
       return await _service.fetchCourseSuggestions(university);
@@ -242,10 +234,10 @@ class MaterialController extends ChangeNotifier {
     _service.incrementViewCount(materialId);
   }
 
-  // ---------- ADMIN ----------
+  //  ADMIN ----------
   Stream<List<MaterialModel>> allMaterialsAdmin() => _service.streamAllMaterialsAdmin();
 
-  /// Admin only: permanently deletes the material document.
+  /// Admin only - permanently deletes the material document.
   Future<bool> deleteMaterialPermanently(String materialId) async {
     _startSaving();
     try {
@@ -258,7 +250,7 @@ class MaterialController extends ChangeNotifier {
     }
   }
 
-  // ---------- PRIVATE HELPERS ----------
+  //  PRIVATE HELPERS ----------
 
   Future<Map<String, dynamic>> _uploadCover(File file, String filename) {
     return _storage.uploadFile(
@@ -270,8 +262,6 @@ class MaterialController extends ChangeNotifier {
     );
   }
 
-  /// Cleans the sheet's map and checks that a paid material has a real price.
-  /// Returns null (and sets [errorMessage]) if something is invalid.
   _Details? _parseDetails(Map<String, String> d, {String fallbackVisibility = 'private'}) {
     final visibility = d['visibility'] ?? fallbackVisibility;
 

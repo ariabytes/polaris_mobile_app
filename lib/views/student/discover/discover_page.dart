@@ -9,23 +9,7 @@ import 'creator_info.dart';
 import 'material_detail_page.dart';
 
 import 'package:polaris_mobile_app/services/theme_service.dart';
-/// Discover tab — browse/search public materials (public_free + public_paid).
-/// Lives at lib/views/student/discover/discover_page.dart, alongside
-/// material_detail_page.dart and checkout_page.dart.
-///
-/// PERSONALIZATION: if the logged-in user has filled in their academic
-/// profile (university/program, set via My Profile edit), Discover opens
-/// already scoped to "materials from my program" — a real Firestore query
-/// (MaterialService.streamPublicMaterials(university:, program:)).
-///
-/// STREAM MEMOIZATION: the underlying Stream<List<MaterialModel>> is cached
-/// in _stream and only recreated when the personalization scope actually
-/// changes (_personalizedOn toggled, or profile scope changes). Search text
-/// and the school year filter are applied client-side against whatever the
-/// cached stream already returned, so typing in the search box does NOT
-/// resubscribe to Firestore — building a fresh stream every keystroke was
-/// tearing down and recreating the live listener constantly, which is what
-/// caused the flicker / "Target id not found" churn in logcat.
+
 class DiscoverPage extends StatefulWidget {
   const DiscoverPage({super.key});
 
@@ -46,7 +30,6 @@ class _DiscoverPageState extends State<DiscoverPage> {
 
   bool _personalizedOn = true;
 
-  // Memoized stream — only rebuilt when the scope it was built for changes.
   Stream<List<MaterialModel>>? _stream;
   String? _streamKey;
 

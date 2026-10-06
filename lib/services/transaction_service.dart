@@ -10,8 +10,6 @@ class TransactionService {
       _db.collection('transactions');
 
   // ---------- WRITES ----------
-
-  /// Buys a paid material.
   Future<String> purchaseMaterial({
     required String materialId,
     required String buyerId,
@@ -38,11 +36,7 @@ class TransactionService {
     );
   }
 
-  /// Shared logic for paid and free transactions.
-  ///
-  /// The transaction ID is "buyerId_materialId", so a buyer can only ever have
-  /// one transaction per material. Checking for it inside the Firestore
-  /// transaction stops double-taps from creating duplicate purchases.
+  // Shared logic for paid and free transactions.
   Future<String> _createTransaction({
     required String materialId,
     required String buyerId,

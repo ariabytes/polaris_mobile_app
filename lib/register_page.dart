@@ -4,8 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:polaris_mobile_app/controllers/auth_controller.dart';
 import 'package:polaris_mobile_app/services/theme_service.dart';
 
-/// Registration screen. It only collects input and shows messages;
-/// validation lives in AuthController.register().
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
 

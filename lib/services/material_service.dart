@@ -6,9 +6,6 @@ class MaterialService {
       FirebaseFirestore.instance.collection('materials');
 
   // ---------- CREATE ----------
-
-  /// Creates a material. The cover image and attachments are uploaded BEFORE
-  /// this is called, so a failed upload never leaves an empty material behind.
   Future<String> createMaterial({
     required String ownerId,
     required String title,
@@ -68,7 +65,7 @@ class MaterialService {
     await _materials.doc(materialId).update({'view_count': FieldValue.increment(1)});
   }
 
-  // ---------- SOFT DELETE ----------
+  // ---------- SOFT DELETE (student) ----------
   Future<void> removeMaterial(String materialId) async {
     await _materials.doc(materialId).update({
       'status': 'removed',

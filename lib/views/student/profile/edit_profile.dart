@@ -85,10 +85,7 @@ class _EditProfileViewState extends State<EditProfileView> {
     super.dispose();
   }
 
-  // ============================================================
   // BIRTHDAY
-  // ============================================================
-
   Future<void> _pickBirthday() async {
     final now = DateTime.now();
 
@@ -107,10 +104,7 @@ class _EditProfileViewState extends State<EditProfileView> {
     }
   }
 
-  // ============================================================
   // PROFILE PHOTO
-  // ============================================================
-
   Future<void> _pickAndUploadPhoto() async {
     if (_uploadingPhoto) {
       return;
@@ -200,10 +194,7 @@ class _EditProfileViewState extends State<EditProfileView> {
     }
   }
 
-  // ============================================================
   // SAVE PROFILE
-  // ============================================================
-
   Future<void> _save() async {
     final auth = context.read<AuthController>();
 
@@ -233,10 +224,7 @@ class _EditProfileViewState extends State<EditProfileView> {
     }
   }
 
-  // ============================================================
   // BUILD
-  // ============================================================
-
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
@@ -258,10 +246,6 @@ class _EditProfileViewState extends State<EditProfileView> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          // ======================================================
-          // PROFILE PHOTO
-          // ======================================================
-
           Center(
             child: GestureDetector(
               onTap: _uploadingPhoto
@@ -324,10 +308,7 @@ class _EditProfileViewState extends State<EditProfileView> {
 
           const SizedBox(height: 28),
 
-          // ======================================================
           // NAME
-          // ======================================================
-
           const _FieldLabel('Name'),
 
           TextField(
@@ -337,10 +318,7 @@ class _EditProfileViewState extends State<EditProfileView> {
 
           const SizedBox(height: 18),
 
-          // ======================================================
           // BIRTHDAY
-          // ======================================================
-
           const _FieldLabel('Birthday'),
 
           InkWell(
@@ -362,10 +340,7 @@ class _EditProfileViewState extends State<EditProfileView> {
 
           const SizedBox(height: 18),
 
-          // ======================================================
           // UNIVERSITY
-          // ======================================================
-
           const _FieldLabel('University'),
 
           TextField(
@@ -377,10 +352,7 @@ class _EditProfileViewState extends State<EditProfileView> {
 
           const SizedBox(height: 18),
 
-          // ======================================================
           // COLLEGE
-          // ======================================================
-
           const _FieldLabel('Department / College'),
 
           TextField(
@@ -392,10 +364,7 @@ class _EditProfileViewState extends State<EditProfileView> {
 
           const SizedBox(height: 18),
 
-          // ======================================================
           // COURSE
-          // ======================================================
-
           const _FieldLabel('Program'),
 
           TextField(
@@ -407,10 +376,7 @@ class _EditProfileViewState extends State<EditProfileView> {
 
           const SizedBox(height: 18),
 
-          // ======================================================
           // YEAR LEVEL
-          // ======================================================
-
           const _FieldLabel('Year Level'),
 
           DropdownButtonFormField<String>(
@@ -434,10 +400,7 @@ class _EditProfileViewState extends State<EditProfileView> {
 
           const SizedBox(height: 18),
 
-          // ======================================================
           // BIO
-          // ======================================================
-
           const _FieldLabel('Bio'),
 
           TextField(
@@ -451,10 +414,7 @@ class _EditProfileViewState extends State<EditProfileView> {
 
           const SizedBox(height: 12),
 
-          // ======================================================
           // SAVE
-          // ======================================================
-
           SizedBox(
             width: double.infinity,
             height: 50,
@@ -486,10 +446,7 @@ class _EditProfileViewState extends State<EditProfileView> {
     );
   }
 
-  // ============================================================
   // INPUT DECORATION
-  // ============================================================
-
   InputDecoration _inputDecoration({
     String? hint,
   }) {
@@ -504,10 +461,7 @@ class _EditProfileViewState extends State<EditProfileView> {
   }
 }
 
-// ================================================================
 // FIELD LABEL
-// ================================================================
-
 class _FieldLabel extends StatelessWidget {
   const _FieldLabel(this.text);
 

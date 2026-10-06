@@ -5,17 +5,12 @@ class UserModel {
   final String name;
   final String email;
   final String role; // "student" | "admin"
-
-  // These are created when the user account is created.
-  // They should always have values.
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  // These are optional profile fields.
-  // They may initially be null/absent and are filled in through Edit Profile.
   final DateTime? birthday;
   final String? university;
-  final String? college; // department
+  final String? college; // department like CCE
   final String? program;
   final String? yearLevel;
   final String? bio;
@@ -49,9 +44,6 @@ class UserModel {
       email: data['email'] ?? '',
       role: data['role'] ?? 'student',
 
-      // These should already exist in the database.
-      // The fallback prevents a crash if an older document happens
-      // to be missing one of them.
       createdAt:
           (data['created_at'] as Timestamp?)?.toDate() ??
           DateTime.now(),
@@ -60,7 +52,6 @@ class UserModel {
           (data['updated_at'] as Timestamp?)?.toDate() ??
           DateTime.now(),
 
-      // Optional profile fields.
       birthday:
           (data['birthday'] as Timestamp?)?.toDate(),
 
@@ -85,11 +76,9 @@ class UserModel {
       'email': email,
       'role': role,
 
-      // These are existing account timestamps.
       'created_at': Timestamp.fromDate(createdAt),
       'updated_at': Timestamp.fromDate(updatedAt),
 
-      // Optional profile fields are allowed to be null.
       'birthday': birthday != null
           ? Timestamp.fromDate(birthday!)
           : null,
@@ -103,10 +92,6 @@ class UserModel {
     };
   }
 
-  /// Creates a copy of this user.
-  ///
-  /// The clearX parameters allow nullable profile fields
-  /// to intentionally be changed to null.
   UserModel copyWith({
     String? name,
 
@@ -136,15 +121,12 @@ class UserModel {
     return UserModel(
       userId: userId,
 
-      // Name is editable.
       name: name ?? this.name,
 
-      // These account fields remain unchanged.
       email: email,
       role: role,
       createdAt: createdAt,
 
-      // updatedAt can be supplied, otherwise keep the current value.
       updatedAt: updatedAt ?? this.updatedAt,
 
       birthday: clearBirthday

@@ -15,10 +15,6 @@ import 'material_details_sheet.dart';
 import 'package:polaris_mobile_app/services/theme_service.dart';
 
 /// Create / edit a text (Markdown) material.
-///
-/// Pass [readOnly] = true (with an [existingMaterial]) to open the material
-/// as a read-only viewer: no editing, no toolbar, no save, no cover change.
-/// Used by admins and by buyers opening purchased/saved text materials.
 class CreateMaterialView extends StatefulWidget {
   const CreateMaterialView({
     super.key,
@@ -317,7 +313,6 @@ class _CreateMaterialViewState extends State<CreateMaterialView> {
     );
   }
 
-  /// Small summary line (course, school, term) shown in read-only mode.
   Widget _buildReadOnlyMeta() {
     final m = widget.existingMaterial!;
 
@@ -357,7 +352,6 @@ class _CreateMaterialViewState extends State<CreateMaterialView> {
         widget.existingMaterial?.coverImage?['url'] as String?;
     final hasExistingCover = existingUrl != null && existingUrl.isNotEmpty;
 
-    // In read-only mode, only show the cover if the material actually has one.
     final showCover = !keyboardOpen && (!_readOnly || hasExistingCover);
 
     final hasDescription = _descriptionController.text.trim().isNotEmpty;

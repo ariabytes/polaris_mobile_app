@@ -5,7 +5,7 @@ class MaterialModel {
   final String ownerId;
   final String title;
   final String? description;
-  final String content; // markdown
+  final String content; // markdown content
   final String university;
   final String college;
   final String program; // degree program, e.g. "BS Information Technology"
@@ -18,9 +18,9 @@ class MaterialModel {
   final double? price;
   final int viewCount;
   final int purchaseCount;
-  final Map<String, dynamic>? coverImage; // {public_id, format}
+  final Map<String, dynamic>? coverImage; 
   final List<Map<String, dynamic>> attachments;
-  // each: {public_id, resource_type, format, original_filename, size_bytes, uploaded_at}
+  // {public_id, resource_type, format, original_filename, size_bytes, uploaded_at}
   final DateTime? createdAt;
   final DateTime? updatedAt;
 

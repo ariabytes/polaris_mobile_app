@@ -21,8 +21,6 @@ class _AdminMaterialsViewState extends State<AdminMaterialsView> {
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
 
-  // Created once so typing in the search box doesn't recreate the streams
-  // (which would flash the loading spinner on every keystroke).
   late final Stream<List<MaterialModel>> _materialsStream;
   late final Stream<List<UserModel>> _usersStream;
 
@@ -42,14 +40,13 @@ class _AdminMaterialsViewState extends State<AdminMaterialsView> {
   bool _matches(MaterialModel m, String creatorName) {
     if (_query.isEmpty) return true;
     final haystack = [
-      m.university, // school
-      m.college, // department
-      creatorName, // person who created it
-      m.course, // subject / course
+      m.university, 
+      m.college, 
+      creatorName, // person who created it :p
+      m.course, 
       m.title,
     ].join(' ').toLowerCase();
 
-    // Every word typed must appear somewhere, so "um computing" works.
     return _query
         .split(RegExp(r'\s+'))
         .where((w) => w.isNotEmpty)
@@ -95,8 +92,6 @@ class _AdminMaterialsViewState extends State<AdminMaterialsView> {
             child: StreamBuilder<List<UserModel>>(
               stream: _usersStream,
               builder: (context, userSnap) {
-                // Map ownerId -> name. If users haven't loaded yet we just
-                // show "Unknown user" briefly instead of blocking the list.
                 final names = <String, String>{
                   for (final u in userSnap.data ?? const <UserModel>[])
                     u.userId: u.name,
@@ -238,8 +233,7 @@ class _MaterialCard extends StatelessWidget {
     );
   }
 
-  /// Text (String) materials open in the read-only viewer;
-  /// file materials show the attachment list.
+  // Text (String) materials open in the read-only viewer file materials show the attachment list.
   void _open(BuildContext context) {
     if (material.attachments.isEmpty) {
       Navigator.of(context).push(

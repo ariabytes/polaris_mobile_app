@@ -3,21 +3,18 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Polaris palette (from your picked swatches).
 class PolarisPalette {
   PolarisPalette._();
 
-  static const Color night = Color(0xFF151E2F); // dark background
-  static const Color royal = Color(0xFF2A3E83); // brand blue
+  static const Color night = Color(0xFF151E2F); 
+  static const Color royal = Color(0xFF2A3E83); 
   static const Color khaki = Color(0xFFDAD69F);
-  static const Color star = Color(0xFFD7A02B); // star yellow
+  static const Color star = Color(0xFFD7A02B); 
   static const Color olive = Color(0xFFA3945D);
   static const Color periwinkle = Color(0xFF6D82B1);
   static const Color slate = Color(0xFF303F63);
 }
 
-/// Extra colors the views use directly (text, cards, fields, status colors).
-/// Read them with `context.pc`.
 @immutable
 class PolarisColors extends ThemeExtension<PolarisColors> {
   const PolarisColors({
@@ -33,14 +30,14 @@ class PolarisColors extends ThemeExtension<PolarisColors> {
     required this.danger,
   });
 
-  final Color background; // screen background
-  final Color card; // cards, sheets, dialogs
-  final Color field; // text field + chip fill
-  final Color ink; // main text and icons
-  final Color muted; // secondary text
-  final Color accent; // links, selected chips, highlights
-  final Color star; // prices and star highlights
-  final Color line; // dividers
+  final Color background; 
+  final Color card; 
+  final Color field; 
+  final Color ink; 
+  final Color muted; 
+  final Color accent;
+  final Color star; 
+  final Color line; 
   final Color success;
   final Color danger;
 
@@ -51,7 +48,7 @@ class PolarisColors extends ThemeExtension<PolarisColors> {
     ink: PolarisPalette.night,
     muted: Color(0xFF4F5B7A),
     accent: PolarisPalette.royal,
-    star: Color(0xFF7A6C2D), // darkened olive so small price text stays readable
+    star: Color(0xFF7A6C2D), 
     line: Color(0xFFD5DAEA),
     success: Color(0xFF1E7A4C),
     danger: Color(0xFFC0252B),
@@ -63,7 +60,7 @@ class PolarisColors extends ThemeExtension<PolarisColors> {
     field: PolarisPalette.slate,
     ink: Color(0xFFF2F5FF),
     muted: Color(0xFFAEB9DA),
-    accent: Color(0xFFA9BBF0), // lightened periwinkle for contrast on navy
+    accent: Color(0xFFA9BBF0), 
     star: PolarisPalette.star,
     line: Color(0xFF3A4A75),
     success: Color(0xFF6FD6A0),
@@ -119,7 +116,6 @@ extension PolarisThemeContext on BuildContext {
   PolarisColors get pc => Theme.of(this).extension<PolarisColors>()!;
 }
 
-/// Holds the chosen theme mode (system by default) and remembers it.
 class ThemeModeController extends ChangeNotifier {
   ThemeModeController._(this._mode, this._prefs);
 
@@ -152,7 +148,7 @@ class ThemeModeController extends ChangeNotifier {
   }
 }
 
-/// Sun/moon button. Moon in light mode (tap for dark), sun in dark mode.
+/// Sun/moon button
 class ThemeToggleButton extends StatelessWidget {
   const ThemeToggleButton({super.key});
 
@@ -169,12 +165,6 @@ class ThemeToggleButton extends StatelessWidget {
   }
 }
 
-/// One place for the whole app's look.
-///
-/// In main.dart:
-///   theme: ThemeService.light,
-///   darkTheme: ThemeService.dark,
-///   themeMode: themeController.mode,  (see main.dart)
 class ThemeService {
   ThemeService._();
 
@@ -272,7 +262,6 @@ class ThemeService {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
 
-      // Filled fields, no outlines anywhere.
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: WidgetStateColor.resolveWith((states) {

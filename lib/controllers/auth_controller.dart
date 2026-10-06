@@ -9,14 +9,11 @@ import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/storage_service.dart';
 
-/// Handles login state, registration, and the current user's profile.
-/// All validation lives here so the views only display results.
 class AuthController extends ChangeNotifier {
   static const int resendCooldownSeconds = 60;
 
   static final RegExp _emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
-  /// Shared email check, also used by the forgot-password dialog.
   static bool isValidEmail(String email) => _emailRegex.hasMatch(email.trim());
 
   final AuthService _authService;
@@ -41,7 +38,6 @@ class AuthController extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   String? get infoMessage => _infoMessage;
 
-  /// Seconds left before another verification email can be requested.
   int get resendCooldown => _resendCooldown;
 
   bool get isLoggedIn {
@@ -59,7 +55,7 @@ class AuthController extends ChangeNotifier {
     return _authService.streamUserData(uid);
   }
 
-  // ---------- AUTH STATE ----------
+  //  AUTH STATE ----------
 
   Future<void> _onAuthStateChanged(User? firebaseUser) async {
     if (firebaseUser == null || !firebaseUser.emailVerified) {
@@ -73,8 +69,6 @@ class AuthController extends ChangeNotifier {
       if (_authService.currentUser?.uid != firebaseUser.uid) return;
       _currentUserProfile = profile;
     } catch (_) {
-      // Without a profile the app would show a loading spinner forever,
-      // so sign the user out and let them log in again.
       await logout();
       return;
     }
@@ -87,11 +81,10 @@ class AuthController extends ChangeNotifier {
       _currentUserProfile =
           u == null ? null : await _authService.getUserData(u.uid);
     } catch (_) {
-      // Keep the previous profile; _onAuthStateChanged handles hard failures.
     }
   }
 
-  // ---------- LOGIN / REGISTER ----------
+  // LOGIN / REGISTER ----------
 
   Future<bool> login({
     required String email,
@@ -192,11 +185,10 @@ class AuthController extends ChangeNotifier {
     try {
       final error = await _authService.signInWithGoogle();
       if (error == AuthService.googleCancelled) {
-        return _fail(null); // user backed out: stay silent
+        return _fail(null); 
       }
       if (error != null) return _fail(error);
 
-      // Brand-new Google users get their profile document during sign-in.
       await _refreshProfile();
       return _succeed();
     } catch (_) {
@@ -227,14 +219,13 @@ class AuthController extends ChangeNotifier {
     try {
       await _authService.signOut();
     } catch (_) {
-      // Signing out locally below still clears the UI state.
     } finally {
       _currentUserProfile = null;
       notifyListeners();
     }
   }
 
-  // ---------- PROFILE ----------
+  //  PROFILE ----------
 
   Future<bool> uploadProfilePhoto(
     String uid,
@@ -297,14 +288,13 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  /// Live profile of any user (used to show a material's creator).
   Stream<UserModel?> userStream(String uid) => _authService.streamUserData(uid);
 
-  // ---------- ADMIN ----------
+  //  ADMIN ----------
 
   Stream<List<UserModel>> allUsers() => _authService.streamAllUsers();
 
-  /// Admin only. Admins cannot delete their own account or other admins.
+  /// Admin only
   Future<bool> deleteUser(String uid) async {
     if (uid == _authService.currentUser?.uid) {
       return _fail('You cannot delete your own account.');
@@ -323,7 +313,7 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  // ---------- PRIVATE HELPERS ----------
+  //  PRIVATE HELPERS ----------
 
   void _startResendCooldown() {
     _cooldownTimer?.cancel();

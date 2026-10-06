@@ -17,9 +17,6 @@ class AdminHomepage extends StatelessWidget {
     final navy = _pc.ink;
     final orange = _pc.accent;
 
-    // read(), not watch() — we only need these controllers to hand us their
-    // Streams below; we don't want this whole page rebuilding every time
-    // e.g. isSaving flips on an unrelated screen sharing the same instance.
     final authController = context.read<AuthController>();
     final materialController = context.read<MaterialController>();
     final transactionController = context.read<TransactionController>();

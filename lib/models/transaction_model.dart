@@ -8,7 +8,7 @@ class TransactionModel {
   final double materialPrice;
   final double platformFee;
   final double sellerEarnings;
-  final String paymentMethod; // mock: "Maya" | "GCash" | "Card"
+  final String paymentMethod; // "Maya" | "GCash" | "Card"
   final String status; // "completed"
   final DateTime? purchasedAt;
 

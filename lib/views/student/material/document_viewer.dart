@@ -8,8 +8,6 @@ class DocumentViewer {
     'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx',
   };
 
-  /// Opens [fileUrl] in the external browser, wrapping it in the Office
-  /// Online viewer first if [format] needs it.
   static Future<void> open(
     BuildContext context, {
     required String fileUrl,

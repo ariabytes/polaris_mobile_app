@@ -86,7 +86,7 @@ class _MaterialDetailPageState extends State<MaterialDetailPage> {
 
           return StreamBuilder<bool>(
             stream: transactionController.hasPurchased(
-              buyerId: currentUserId!,
+              buyerId: currentUserId,
               materialId: material.materialId,
             ),
             builder: (context, txnSnap) {
