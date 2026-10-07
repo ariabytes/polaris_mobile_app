@@ -42,21 +42,4 @@ class TransactionModel {
       hiddenByBuyer: data['hidden_by_buyer'] == true,
     );
   }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'transaction_id': transactionId,
-      'buyer_id': buyerId,
-      'seller_id': sellerId,
-      'material_id': materialId,
-      'material_price': materialPrice,
-      'platform_fee': platformFee,
-      'seller_earnings': sellerEarnings,
-      'payment_method': paymentMethod,
-      'status': status,
-      'hidden_by_buyer': hiddenByBuyer,
-      'purchased_at':
-          purchasedAt != null ? Timestamp.fromDate(purchasedAt!) : FieldValue.serverTimestamp(),
-    };
-  }
 }

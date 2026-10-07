@@ -127,19 +127,26 @@ class TransactionService {
         .map((snap) => snap.docs.isNotEmpty);
   }
 
-  /// One transaction by its id (<buyerId>_<materialId>); null if none exists.
+  /// One transaction for this buyer + material; null if none exists.
+  /// Queries by fields (not by doc ID) so older purchases with random
+  /// doc IDs still match.
   Stream<TransactionModel?> streamTransaction({
     required String buyerId,
     required String materialId,
   }) {
-    return _transactions.doc('${buyerId}_$materialId').snapshots().map((doc) {
-      final data = doc.data();
-      if (!doc.exists || data == null) return null;
-      return TransactionModel.fromMap(doc.id, data);
+    return _transactions
+        .where('buyer_id', isEqualTo: buyerId)
+        .where('material_id', isEqualTo: materialId)
+        .limit(1)
+        .snapshots()
+        .map((snap) {
+      if (snap.docs.isEmpty) return null;
+      final d = snap.docs.first;
+      return TransactionModel.fromMap(d.id, d.data());
     });
   }
 
-  /// Hides / un-hides a purchase in the buyer's library. 
+  /// Hides / un-hides a purchase in the buyer's library.
   Future<void> setHiddenByBuyer(String transactionId, bool hidden) {
     return _transactions.doc(transactionId).update({'hidden_by_buyer': hidden});
   }

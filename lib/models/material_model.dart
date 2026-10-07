@@ -19,8 +19,7 @@ class MaterialModel {
   final int viewCount;
   final int purchaseCount;
   final Map<String, dynamic>? coverImage; 
-  final List<Map<String, dynamic>> attachments;
-  // {public_id, resource_type, format, original_filename, size_bytes, uploaded_at}
+  final List<Map<String, dynamic>> attachments; // {public_id, resource_type, format, original_filename, size_bytes, uploaded_at}
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -52,7 +51,6 @@ class MaterialModel {
   bool get isPublicFree => visibility == 'public_free';
   bool get isPublicPaid => visibility == 'public_paid';
   bool get isActive => status == 'active';
-  bool get needsRestrictedStorage => visibility == 'private' || visibility == 'public_paid';
 
   factory MaterialModel.fromMap(String docId, Map<String, dynamic> data) {
     return MaterialModel(
